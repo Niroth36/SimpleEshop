@@ -3,12 +3,12 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
+    background-color: #dacdab;
 }
 
 /* Header Styling */
 header {
-    background-color: #333;
+    background-color: #b60b3f;
     color: white;
     padding: 1rem;
     text-align: center;
@@ -26,7 +26,7 @@ header p {
 
 /* Navigation Menu */
 nav {
-    background-color: #444;
+    background-color: #242323;
     padding: 0.5rem;
 }
 
@@ -60,4 +60,24 @@ nav ul li a:hover {
     background-color: white;
     border: 1px solid #ccc;
     border-radius: 8px;
+}
+
+.home-container {
+    text-align: center;
+    margin: 20px auto;
+    max-width: 800px; /* Restrict the width for better readability */
+    padding: 20px;
+}
+
+.home-banner {
+    width: 100%; /* Full width banner */
+    max-height: 400px; /* Restrict height if needed */
+    object-fit: cover; /* Ensure the image looks good even when resized */
+    margin-bottom: 20px;
+}
+
+.home-container p {
+    font-size: 1.2em; /* Slightly larger font for better readability */
+    line-height: 1.6; /* Improve line spacing */
+    color: #333; /* Optional: Change color for better contrast */
 }

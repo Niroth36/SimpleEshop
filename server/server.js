@@ -33,7 +33,7 @@ app.get('/api/products', (req, res) => {
         ? 'SELECT * FROM products WHERE category = ?'
         : 'SELECT * FROM products';
 
-    connection.query(query, [category], (err, results) => {
+    connection.query(query, category ? [category] : [], (err, results) => {
         if (err) {
             console.error(err);
             res.status(500).send('Server Error');
