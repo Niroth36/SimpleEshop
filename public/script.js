@@ -1,19 +1,21 @@
-// Example products data
-const products = [
-    { id: 1, title: "Intel Core i9-13900K", description: "High-performance CPU", image: "cpu1.jpg", value: 599, category: "cpu" },
-    { id: 2, title: "Corsair Vengeance 16GB RAM", description: "Reliable and fast RAM", image: "ram1.jpg", value: 89, category: "ram" },
-    { id: 3, title: "Samsung 970 EVO SSD", description: "High-speed storage", image: "storage1.jpg", value: 109, category: "storage" },
-    { id: 4, title: "NVIDIA GeForce RTX 3080", description: "Top-tier GPU", image: "gpu1.jpg", value: 699, category: "gpu" }
-];
+// Fetch products based on the current URL
+function fetchAndRenderProducts(category = 'home') {
+    const apiUrl = `/api/products?category=${category}`;
 
-// Function to render products
-function renderProducts(category) {
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(products => {
+            renderProducts(products);
+        })
+        .catch(err => console.error('Error fetching products:', err));
+}
+
+// Render products dynamically on the page
+function renderProducts(products) {
     const productContainer = document.getElementById("product-container");
     productContainer.innerHTML = ""; // Clear previous content
 
-    const filteredProducts = products.filter(product => product.category === category || category === "home");
-
-    filteredProducts.forEach(product => {
+    products.forEach(product => {
         const productDiv = document.createElement("div");
         productDiv.classList.add("product");
 
@@ -30,14 +32,22 @@ function renderProducts(category) {
     });
 }
 
-// Event listeners for navigation
+// Handle page load based on current URL
+function handlePageLoad() {
+    const path = window.location.pathname.substring(1); // Get the path without "/"
+    const category = path || 'home'; // Default to 'home' if no category
+    fetchAndRenderProducts(category);
+}
+
+// Handle clicks on navigation links
 document.querySelectorAll("nav a").forEach(navLink => {
     navLink.addEventListener("click", (e) => {
         e.preventDefault();
-        const category = e.target.getAttribute("data-category");
-        renderProducts(category);
+        const href = e.target.getAttribute("href").substring(1); // Get category from href
+        history.pushState({}, '', `/${href}`); // Update URL without reloading
+        fetchAndRenderProducts(href); // Fetch products for the new category
     });
 });
 
-// Initial load
-renderProducts("home");
+// Load products on initial page load
+window.addEventListener("load", handlePageLoad);

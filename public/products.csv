@@ -1,0 +1,5 @@
+id,title,description,image,value,category
+1,Intel Core i9-13900K,High-performance CPU,cpu1.jpg,599,cpu
+2,Corsair Vengeance 16GB RAM,Reliable and fast RAM,ram1.jpg,89,ram
+3,Samsung 970 EVO SSD,High-speed storage,storage1.jpg,109,storage
+4,NVIDIA GeForce RTX 3080,Top-tier GPU,gpu1.jpg,699,gpu
