@@ -81,3 +81,37 @@ nav ul li a:hover {
     line-height: 1.6; /* Improve line spacing */
     color: #333; /* Optional: Change color for better contrast */
 }
+
+/* Cart Icon Styles */
+#cart-icon-container {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+}
+
+#cart-link {
+    position: relative;
+    text-decoration: none;
+    color: inherit;
+}
+
+#cart-icon {
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+}
+
+#cart-count {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: red;
+    color: white;
+    font-size: 14px;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

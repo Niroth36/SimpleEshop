@@ -61,6 +61,42 @@ function handlePageLoad() {
     renderContent(category);
 }
 
+// Add a product to the cart
+function addToCart(product) {
+    const cart = JSON.parse(localStorage.getItem("cart")) || []; // Retrieve existing cart or initialize an empty array
+    cart.push(product); // Add the selected product to the cart
+    localStorage.setItem("cart", JSON.stringify(cart)); // Save the updated cart to localStorage
+    window.location.href = "/checkout"; // Redirect to checkout page
+}
+
+// Render products dynamically on the page
+function renderProducts(products) {
+    const productContainer = document.getElementById("dynamic-content");
+    productContainer.innerHTML = ""; // Clear previous content
+
+    products.forEach(product => {
+        const productDiv = document.createElement("div");
+        productDiv.classList.add("product");
+
+        productDiv.innerHTML = `
+            <img src="${product.image}" alt="${product.title}" style="max-width: 150px; border-radius: 8px;">
+            <div class="product-info">
+                <h2>${product.title}</h2>
+                <p>${product.description}</p>
+                <p>Price: ${product.value}€</p>
+                <button class="add-to-cart">Add to Cart</button>
+            </div>
+        `;
+
+        // Attach event listener to the Add to Cart button
+        productDiv.querySelector(".add-to-cart").addEventListener("click", () => {
+            addToCart(product);
+        });
+
+        productContainer.appendChild(productDiv);
+    });
+}
+
 // Handle clicks on navigation links
 document.querySelectorAll("nav a").forEach(navLink => {
     navLink.addEventListener("click", (e) => {
@@ -70,6 +106,16 @@ document.querySelectorAll("nav a").forEach(navLink => {
         renderContent(href); // Render content for the new category
     });
 });
+
+// Update the cart count in the navigation bar
+function updateCartCount() {
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const cartCount = document.getElementById("cart-count");
+    cartCount.textContent = cart.length; // Display the number of items in the cart
+}
+
+// Call updateCartCount on page load
+window.addEventListener("load", updateCartCount);
 
 // Handle browser navigation (back/forward buttons)
 window.addEventListener("popstate", handlePageLoad);

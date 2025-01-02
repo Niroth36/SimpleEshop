@@ -43,6 +43,10 @@ app.get('/api/products', (req, res) => {
     });
 });
 
+app.get('/checkout', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/checkout.html'));
+});
+
 // Serve category pages dynamically
 app.get('/:category', (req, res) => {
     const category = req.params.category;
