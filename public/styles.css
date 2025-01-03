@@ -201,3 +201,33 @@ nav ul li a:hover {
     color: white;
     background-color: #1caabd;
 }
+
+.cart-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.cart-title {
+    flex: 2;
+    text-align: left;
+}
+
+.cart-quantity, .quantity-btn, .remove-btn {
+    margin: 0 5px;
+}
+
+.quantity-btn, .remove-btn {
+    padding: 5px 10px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #1caabd;
+    color: white;
+}
+
+.quantity-btn:hover, .remove-btn:hover {
+    background-color: #137986;
+}

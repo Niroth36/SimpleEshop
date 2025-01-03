@@ -165,18 +165,7 @@ function isAuthenticated(req, res, next) {
 }
 
 // Add to cart (authenticated users only)
-app.post('/api/cart', isAuthenticated, (req, res) => {
-    const { productId } = req.body;
 
-    const query = 'UPDATE products SET cart = true WHERE id = ?';
-    connection.query(query, [productId], (err) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).send('Server error');
-        }
-        res.status(200).send('Product added to cart');
-    });
-});
 
 // Logout
 app.post('/api/logout', (req, res) => {
@@ -202,8 +191,120 @@ app.get('/api/products', (req, res) => {
     });
 });
 
-app.get('/checkout', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/checkout.html'));
+app.get('/cart', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/cart.html'));
+});
+
+// Add a product to the cart for the logged-in user
+app.post('/api/cart', (req, res) => {
+    const { productId } = req.body;
+    const userId = req.session.userId;
+
+    if (!userId) {
+        return res.status(401).send('User not authenticated');
+    }
+
+    // Check if the product is already in the cart
+    const checkQuery = 'SELECT * FROM cart_items WHERE user_id = ? AND product_id = ?';
+    connection.query(checkQuery, [userId, productId], (err, results) => {
+        if (err) {
+            console.error('Error checking cart items:', err);
+            return res.status(500).send('Server error');
+        }
+
+        if (results.length > 0) {
+            // Update the quantity if the product is already in the cart
+            const updateQuery = 'UPDATE cart_items SET quantity = quantity + 1 WHERE user_id = ? AND product_id = ?';
+            connection.query(updateQuery, [userId, productId], (err) => {
+                if (err) {
+                    console.error('Error updating cart item:', err);
+                    return res.status(500).send('Server error');
+                }
+                res.status(200).send('Product quantity updated in cart');
+            });
+        } else {
+            // Insert the product into the cart
+            const insertQuery = 'INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, 1)';
+            connection.query(insertQuery, [userId, productId], (err) => {
+                if (err) {
+                    console.error('Error inserting cart item:', err);
+                    return res.status(500).send('Server error');
+                }
+                res.status(200).send('Product added to cart');
+            });
+        }
+    });
+});
+
+// Fetch cart items for the logged-in user
+app.get('/api/cart', (req, res) => {
+    const userId = req.session.userId;
+
+    if (!userId) {
+        return res.status(401).send('User not authenticated');
+    }
+
+    const query = `
+        SELECT 
+            p.id AS product_id, 
+            p.title, 
+            p.description, 
+            p.image, 
+            p.value, 
+            c.quantity 
+        FROM cart_items c
+        JOIN products p ON c.product_id = p.id
+        WHERE c.user_id = ?
+    `;
+
+    connection.query(query, [userId], (err, results) => {
+        if (err) {
+            console.error('Error fetching cart items:', err);
+            return res.status(500).send('Server error');
+        }
+        res.json(results);
+    });
+});
+
+app.delete('/api/cart/:productId', (req, res) => {
+    const productId = req.params.productId;
+    const userId = req.session.userId;
+
+    if (!userId) {
+        return res.status(401).send('User not authenticated');
+    }
+
+    const deleteQuery = 'DELETE FROM cart_items WHERE user_id = ? AND product_id = ?';
+    connection.query(deleteQuery, [userId, productId], (err) => {
+        if (err) {
+            console.error('Error deleting cart item:', err);
+            return res.status(500).send('Server error');
+        }
+        res.status(200).send('Product removed from cart');
+    });
+});
+
+app.patch('/api/cart/:productId/quantity', (req, res) => {
+    const productId = req.params.productId;
+    const userId = req.session.userId;
+    const { delta } = req.body;
+
+    if (!userId) {
+        return res.status(401).send('User not authenticated');
+    }
+
+    const updateQuery = `
+        UPDATE cart_items 
+        SET quantity = GREATEST(quantity + ?, 0) 
+        WHERE user_id = ? AND product_id = ?
+    `;
+    connection.query(updateQuery, [delta, userId, productId], (err) => {
+        if (err) {
+            console.error('Error updating quantity:', err);
+            return res.status(500).send('Server error');
+        }
+        res.status(200).send('Quantity updated');
+    });
 });
 
 // Serve category pages dynamically

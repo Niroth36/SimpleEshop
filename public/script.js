@@ -62,22 +62,24 @@ function fetchProducts(category) {
 
 // Add a product to the cart
 function addToCart(product) {
+    console.log('Adding product to cart:', product); // Debug log
+
     fetch('/api/cart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId: product.id }),
     })
-    .then(response => {
-        if (response.status === 401) {
-            alert('You need to log in to add products to the cart');
-            window.location.href = '/auth.html';
-        } else if (response.ok) {
-            alert('Product added to cart');
-        } else {
-            alert('Failed to add product to cart');
-        }
-    })
-    .catch(err => console.error(err));
+        .then(response => {
+            if (response.status === 401) {
+                alert('You need to log in to add products to the cart');
+                window.location.href = '/auth.html';
+            } else if (response.ok) {
+                alert('Product added to cart');
+            } else {
+                alert('Failed to add product to cart');
+            }
+        })
+        .catch(err => console.error('Error adding product to cart:', err));
 }
 
 // Update the navigation bar based on authentication status

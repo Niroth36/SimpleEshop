@@ -1,9 +1,9 @@
-id,title,description,image,value,category,cart
-1,Intel Core i9-13900K,High-performance CPU,images/cpu1.jpg,599,cpu,false
-2,Corsair Vengeance 16GB RAM,Reliable and fast RAM,images/ram1.jpg,89,ram,false
-3,Samsung 970 EVO SSD,High-speed storage,images/storage1.jpg,109,storage,false
-4,NVIDIA GeForce RTX 3080,Top-tier GPU,images/gpu1.jpg,699,gpu,false
-5,AMD Ryzen™ 9 9950X,Higher-performance CPU from AMD,images/cpu2.jpg,699,cpu,false
-6,G.Skill Ripjaws V 16GB RAM,Affordable and reliable RAM,images/ram2.jpg,33,ram,false
-7,Crucial BX500 SSD 1TB, High-speed ssd disk,images/storage2.jpg,55,storage,false
-8,Sapphire Radeon RX 7900 XT 20GB,High performance CPU,images/gpu2.jpg,750,gpu,false
+id,title,description,image,value,category
+1,Intel Core i9-13900K,High-performance CPU,images/cpu1.jpg,599,cpu
+2,Corsair Vengeance 16GB RAM,Reliable and fast RAM,images/ram1.jpg,89,ram
+3,Samsung 970 EVO SSD,High-speed storage,images/storage1.jpg,109,storage
+4,NVIDIA GeForce RTX 3080,Top-tier GPU,images/gpu1.jpg,699,gpu
+5,AMD Ryzen™ 9 9950X,Higher-performance CPU from AMD,images/cpu2.jpg,699,cpu
+6,G.Skill Ripjaws V 16GB RAM,Affordable and reliable RAM,images/ram2.jpg,33,ram
+7,Crucial BX500 SSD 1TB, High-speed ssd disk,images/storage2.jpg,55,storage
+8,Sapphire Radeon RX 7900 XT 20GB,High performance CPU,images/gpu2.jpg,750,gpu
