@@ -18,11 +18,13 @@ function loadCart() {
 
             cartContainer.innerHTML = ''; // Clear previous content
 
-            cartItems.forEach(item => {
+            cartItems.forEach((item, index) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.classList.add('cart-item');
 
+                // Add the line number (index + 1) for each item
                 itemDiv.innerHTML = `
+                    <span class="cart-line-number">${index + 1}.</span>
                     <span class="cart-title">${item.title}</span>
                     <button class="quantity-btn minus-btn" data-id="${item.product_id}">-</button>
                     <span class="cart-quantity">${item.quantity}</span>

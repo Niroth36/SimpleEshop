@@ -133,10 +133,22 @@ function initializeNavBar() {
 
 // Update the cart count in the navigation bar
 function updateCartCount() {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const cartCount = document.getElementById("cart-count");
-    cartCount.textContent = cart.length; // Display the number of items in the cart
+    fetch('/api/cart')
+        .then(response => {
+            if (response.status === 401) {
+                // User not authenticated; cart count is 0
+                document.getElementById('cart-count').textContent = '0';
+                return [];
+            }
+            return response.json();
+        })
+        .then(cartItems => {
+            // Update the cart count with the number of lines (distinct products)
+            document.getElementById('cart-count').textContent = cartItems.length;
+        })
+        .catch(err => console.error('Error fetching cart items:', err));
 }
+
 
 // Handle page load to render the appropriate content
 function handlePageLoad() {

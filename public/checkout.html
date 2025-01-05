@@ -8,7 +8,7 @@
 </head>
 <body>
     <header>
-        <h1>TechGearHub cart</h1>
+        <h1>TechGearHub checkout</h1>
     </header>
 
     <nav>
@@ -21,9 +21,16 @@
         </ul>
     </nav>
 
-    <div id="cart-container"></div>
-    <button id="proceed-to-payment">Checkout</button>
+    <div id="checkout-summary"></div>
 
-    <script src="cart.js"></script>
+    <form id="checkout-form">
+        <h2>Payment Details</h2>
+        <input type="text" id="iban" placeholder="IBAN" required>
+        <input type="text" id="cvc" placeholder="CVC" required>
+        <input type="text" id="expiry" placeholder="Expiry Date (MM/YY)" required>
+        <input type="text" id="owner" placeholder="Cardholder Name" required>
+        <button type="submit">Complete Order</button>
+    </form>
+    <script src="checkout.js"></script>
 </body>
 </html>
