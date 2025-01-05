@@ -202,21 +202,20 @@ app.get('/checkout', (req, res) => {
 // Add a product to the cart for the logged-in user
 app.post('/api/checkout', (req, res) => {
     const userId = req.session.userId;
-    const { iban, cvc, expiry, owner } = req.body;
 
     if (!userId) {
-        return res.status(401).send('User not authenticated');
+        return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const fetchCartQuery = 'SELECT cart_id, products FROM carts WHERE user_id = ?';
+    const fetchCartQuery = 'SELECT cart_id, products FROM carts WHERE user_id = ? LIMIT 1';
     connection.query(fetchCartQuery, [userId], (err, results) => {
         if (err) {
             console.error('Error fetching cart:', err);
-            return res.status(500).send('Server error');
+            return res.status(500).json({ message: 'Server error' });
         }
 
         if (results.length === 0) {
-            return res.status(400).send('Cart is empty');
+            return res.status(400).json({ message: 'Cart is empty' });
         }
 
         const { cart_id, products } = results[0];
@@ -226,50 +225,34 @@ app.post('/api/checkout', (req, res) => {
             productList = JSON.parse(products) || [];
         } catch (parseError) {
             console.error('Error parsing products JSON:', parseError);
-            return res.status(500).send('Server error');
+            return res.status(500).json({ message: 'Server error' });
         }
 
         if (productList.length === 0) {
-            return res.status(400).send('Cart is empty');
+            return res.status(400).json({ message: 'Cart is empty' });
         }
 
-        const fetchProductsQuery = `
-            SELECT id AS product_id, value AS price 
-            FROM products 
-            WHERE id IN (${productList.map(p => p.product_id).join(',')})
+        const totalAmount = productList.reduce((sum, item) => sum + item.value * item.quantity, 0);
+
+        const insertOrderQuery = `
+            INSERT INTO orders (user_id, cart_id, total_amount) 
+            VALUES (?, ?, ?)
         `;
-        connection.query(fetchProductsQuery, (err, productDetails) => {
+
+        connection.query(insertOrderQuery, [userId, cart_id, totalAmount], (err) => {
             if (err) {
-                console.error('Error fetching product details:', err);
-                return res.status(500).send('Server error');
+                console.error('Error creating order:', err);
+                return res.status(500).json({ message: 'Server error' });
             }
 
-            if (!productDetails || productDetails.length === 0) {
-                console.warn('No product details found');
-                return res.status(400).send('Cart contains invalid products');
-            }
-
-            const totalAmount = productList.reduce((sum, item) => {
-                const product = productDetails.find(p => p.product_id === item.product_id);
-                return sum + (product ? product.price * item.quantity : 0);
-            }, 0);
-
-            const createOrderQuery = 'INSERT INTO orders (user_id, cart_id, total_amount) VALUES (?, ?, ?)';
-            connection.query(createOrderQuery, [userId, cart_id, totalAmount], (err) => {
+            const deleteCartQuery = 'DELETE FROM carts WHERE user_id = ?';
+            connection.query(deleteCartQuery, [userId], (err) => {
                 if (err) {
-                    console.error('Error creating order:', err);
-                    return res.status(500).send('Server error');
+                    console.error('Error clearing cart:', err);
+                    return res.status(500).json({ message: 'Server error' });
                 }
 
-                const clearCartQuery = 'DELETE FROM carts WHERE user_id = ?';
-                connection.query(clearCartQuery, [userId], (err) => {
-                    if (err) {
-                        console.error('Error clearing cart:', err);
-                        return res.status(500).send('Server error');
-                    }
-
-                    res.status(200).send('Order completed successfully');
-                });
+                res.status(200).json({ message: 'Order placed successfully' });
             });
         });
     });
@@ -291,7 +274,7 @@ app.get('/api/cart', (req, res) => {
         }
 
         if (results.length === 0 || !results[0].products) {
-            return res.json([]); // Return an empty array for an empty cart
+            return res.json([]); // Return an empty array if the cart is empty
         }
 
         let products;
@@ -302,7 +285,35 @@ app.get('/api/cart', (req, res) => {
             return res.status(500).json({ message: 'Server error' });
         }
 
-        res.json(products);
+        if (products.length === 0) {
+            return res.json([]); // Return an empty array if no products in cart
+        }
+
+        const productIds = products.map(p => p.product_id);
+
+        const fetchProductsQuery = `
+            SELECT id AS product_id, title, value AS price 
+            FROM products 
+            WHERE id IN (${productIds.join(',')})
+        `;
+        connection.query(fetchProductsQuery, (err, productDetails) => {
+            if (err) {
+                console.error('Error fetching product details:', err);
+                return res.status(500).json({ message: 'Server error' });
+            }
+
+            const detailedCart = products.map(item => {
+                const product = productDetails.find(p => p.product_id === item.product_id);
+                return {
+                    product_id: item.product_id,
+                    title: product ? product.title : 'Unknown',
+                    price: product ? product.price : 0,
+                    quantity: item.quantity,
+                };
+            });
+
+            res.json(detailedCart);
+        });
     });
 });
 
@@ -429,6 +440,7 @@ app.post('/api/cart', (req, res) => {
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
+    // Fetch the current cart for the user
     const fetchCartQuery = 'SELECT cart_id, products FROM carts WHERE user_id = ? LIMIT 1';
     connection.query(fetchCartQuery, [userId], (err, results) => {
         if (err) {
@@ -436,8 +448,8 @@ app.post('/api/cart', (req, res) => {
             return res.status(500).json({ message: 'Server error' });
         }
 
+        let cartId = null;
         let products = [];
-        let cartId;
 
         if (results.length > 0) {
             cartId = results[0].cart_id;
@@ -449,34 +461,45 @@ app.post('/api/cart', (req, res) => {
             }
         }
 
-        const existingProduct = products.find(p => p.product_id === productId);
-        if (existingProduct) {
-            existingProduct.quantity += 1;
-        } else {
-            products.push({ product_id: productId, quantity: 1 });
-        }
+        // Fetch product details to include title and value
+        const fetchProductQuery = 'SELECT id AS product_id, title, value FROM products WHERE id = ?';
+        connection.query(fetchProductQuery, [productId], (err, productResults) => {
+            if (err) {
+                console.error('Error fetching product details:', err);
+                return res.status(500).json({ message: 'Server error' });
+            }
 
-        if (cartId) {
-            // Update existing cart
-            const updateCartQuery = 'UPDATE carts SET products = ? WHERE cart_id = ?';
-            connection.query(updateCartQuery, [JSON.stringify(products), cartId], (err) => {
+            if (productResults.length === 0) {
+                return res.status(404).json({ message: 'Product not found' });
+            }
+
+            const product = productResults[0];
+
+            // Check if the product is already in the cart
+            const existingProduct = products.find(p => p.product_id === productId);
+            if (existingProduct) {
+                existingProduct.quantity += 1; // Increment quantity
+            } else {
+                products.push({ ...product, quantity: 1 }); // Add new product
+            }
+
+            const updateCartQuery = cartId
+                ? 'UPDATE carts SET products = ? WHERE cart_id = ?'
+                : 'INSERT INTO carts (user_id, products) VALUES (?, ?)';
+
+            const queryParams = cartId
+                ? [JSON.stringify(products), cartId]
+                : [userId, JSON.stringify(products)];
+
+            connection.query(updateCartQuery, queryParams, (err) => {
                 if (err) {
                     console.error('Error updating cart:', err);
                     return res.status(500).json({ message: 'Server error' });
                 }
-                res.status(200).json({ message: 'Product added to existing cart' });
+
+                res.status(200).json({ message: 'Product added to cart' });
             });
-        } else {
-            // Create a new cart
-            const createCartQuery = 'INSERT INTO carts (user_id, products) VALUES (?, ?)';
-            connection.query(createCartQuery, [userId, JSON.stringify(products)], (err) => {
-                if (err) {
-                    console.error('Error creating new cart:', err);
-                    return res.status(500).json({ message: 'Server error' });
-                }
-                res.status(201).json({ message: 'Product added to new cart' });
-            });
-        }
+        });
     });
 });
 
