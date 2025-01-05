@@ -320,6 +320,83 @@ app.get('/:category', (req, res) => {
     }
 });
 
+app.post('/api/checkout', (req, res) => {
+    const userId = req.session.userId;
+    const { iban, cvc, expiry, owner } = req.body;
+
+    if (!userId) {
+        return res.status(401).send('User not authenticated');
+    }
+
+    // Validate card details (basic example, expand as needed)
+    if (!iban || !cvc || !expiry || !owner) {
+        return res.status(400).send('All card details are required');
+    }
+
+    // Fetch the cart items
+    const cartQuery = `
+        SELECT c.product_id, c.quantity, p.value AS price 
+        FROM cart_items c
+        JOIN products p ON c.product_id = p.id
+        WHERE c.user_id = ?
+    `;
+
+    connection.query(cartQuery, [userId], (err, cartItems) => {
+        if (err) {
+            console.error('Error fetching cart items:', err);
+            return res.status(500).send('Server error');
+        }
+
+        if (cartItems.length === 0) {
+            return res.status(400).send('Cart is empty');
+        }
+
+        // Calculate total amount
+        const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+        // Insert into orders table
+        const orderQuery = 'INSERT INTO orders (user_id, total_amount) VALUES (?, ?)';
+        connection.query(orderQuery, [userId, totalAmount], (err, result) => {
+            if (err) {
+                console.error('Error creating order:', err);
+                return res.status(500).send('Server error');
+            }
+
+            const orderId = result.insertId;
+
+            // Insert into order_items table
+            const orderItemsQuery = `
+                INSERT INTO order_items (order_id, product_id, quantity, price)
+                VALUES ?
+            `;
+            const orderItemsValues = cartItems.map(item => [
+                orderId,
+                item.product_id,
+                item.quantity,
+                item.price,
+            ]);
+
+            connection.query(orderItemsQuery, [orderItemsValues], (err) => {
+                if (err) {
+                    console.error('Error adding order items:', err);
+                    return res.status(500).send('Server error');
+                }
+
+                // Clear the cart
+                const clearCartQuery = 'DELETE FROM cart_items WHERE user_id = ?';
+                connection.query(clearCartQuery, [userId], (err) => {
+                    if (err) {
+                        console.error('Error clearing cart:', err);
+                        return res.status(500).send('Server error');
+                    }
+
+                    res.status(200).send('Order completed successfully');
+                });
+            });
+        });
+    });
+});
+
 // Serve the home page for the root URL
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/EshopPage.html'));

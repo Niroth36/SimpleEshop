@@ -202,10 +202,16 @@ nav ul li a:hover {
     background-color: #1caabd;
 }
 
+.cart-line-number {
+    width: 30px;
+    text-align: center;
+    margin-right: 10px;
+    font-weight: bold;
+}
 .cart-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     padding: 10px;
     border-bottom: 1px solid #ccc;
 }
@@ -230,4 +236,35 @@ nav ul li a:hover {
 
 .quantity-btn:hover, .remove-btn:hover {
     background-color: #137986;
+}
+
+#checkout-summary {
+    margin-bottom: 20px;
+}
+
+#checkout-form {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    margin: auto;
+}
+
+#checkout-form input {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#checkout-form button {
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#checkout-form button:hover {
+    background-color: #0056b3;
 }
