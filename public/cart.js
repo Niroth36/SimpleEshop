@@ -95,5 +95,9 @@ function adjustQuantity(productId, delta) {
         .catch(err => console.error('Error adjusting quantity:', err));
 }
 
+document.getElementById('checkout-button').addEventListener('click', () => {
+    window.location.href = '/checkout';
+});
+
 // Initialize the cart
 window.addEventListener('load', loadCart);
