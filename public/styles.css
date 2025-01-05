@@ -268,3 +268,16 @@ nav ul li a:hover {
 #checkout-form button:hover {
     background-color: #0056b3;
 }
+
+#checkout-button {
+    padding: 15px 20px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    background-color: #1caabd;
+    border: none;
+    border-radius: 5px; /* Optional for rounded corners */
+    display: block;
+    margin: 20px auto; /* Center horizontally */
+}

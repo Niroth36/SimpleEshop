@@ -75,8 +75,12 @@ function addToCart(product) {
                 window.location.href = '/auth.html';
             } else if (response.ok) {
                 alert('Product added to cart');
+                updateCartCount(); // Update cart count after adding a product
             } else {
-                alert('Failed to add product to cart');
+                return response.json().then(err => {
+                    console.error('Error adding product:', err);
+                    alert(err.message || 'Failed to add product to cart');
+                });
             }
         })
         .catch(err => console.error('Error adding product to cart:', err));
