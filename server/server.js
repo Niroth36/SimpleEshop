@@ -232,8 +232,12 @@ app.post('/api/checkout', (req, res) => {
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
-        const totalAmount = productList.reduce((sum, item) => sum + item.value * item.quantity, 0);
+        // Calculate total amount
+        const totalAmount = parseFloat(
+            productList.reduce((sum, item) => sum + item.value * item.quantity, 0).toFixed(2)
+        );
 
+        // Insert into orders table
         const insertOrderQuery = `
             INSERT INTO orders (user_id, cart_id, total_amount) 
             VALUES (?, ?, ?)
@@ -245,18 +249,13 @@ app.post('/api/checkout', (req, res) => {
                 return res.status(500).json({ message: 'Server error' });
             }
 
-            const deleteCartQuery = 'DELETE FROM carts WHERE user_id = ?';
-            connection.query(deleteCartQuery, [userId], (err) => {
-                if (err) {
-                    console.error('Error clearing cart:', err);
-                    return res.status(500).json({ message: 'Server error' });
-                }
-
-                res.status(200).json({ message: 'Order placed successfully' });
-            });
+            // Do not delete the cart, only send success response
+            console.log(`[Checkout] Order created successfully for user: ${userId}`);
+            res.status(200).json({ message: 'Order placed successfully' });
         });
     });
 });
+
 
 // Fetch cart items for the logged-in user
 app.get('/api/cart', (req, res) => {
@@ -316,6 +315,27 @@ app.get('/api/cart', (req, res) => {
         });
     });
 });
+
+// Clear the entire cart for the logged-in user
+app.delete('/api/cart/clear', (req, res) => {
+    const userId = req.session.userId;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const deleteCartQuery = 'DELETE FROM carts WHERE user_id = ?';
+    connection.query(deleteCartQuery, [userId], (err) => {
+        if (err) {
+            console.error('[Clear Cart] Error clearing cart:', err);
+            return res.status(500).json({ message: 'Server error' });
+        }
+
+        console.log(`[Clear Cart] Cart cleared for user: ${userId}`);
+        res.status(200).json({ message: 'Cart cleared successfully' });
+    });
+});
+
 
 app.delete('/api/cart/:productId', (req, res) => {
     const productId = parseInt(req.params.productId, 10); // Ensure productId is a number

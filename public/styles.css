@@ -281,3 +281,16 @@ nav ul li a:hover {
     display: block;
     margin: 20px auto; /* Center horizontally */
 }
+
+#clear-cart {
+    padding: 5px 10px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px; /* Optional for rounded corners */
+    display: block;
+    margin: 20px auto; /* Center horizontally */
+}
