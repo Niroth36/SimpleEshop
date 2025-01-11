@@ -257,6 +257,22 @@ app.post('/api/checkout', (req, res) => {
 });
 
 
+app.get('/api/orders', (req, res) => {
+    const fetchOrdersQuery = `
+        SELECT o.*, c.products 
+        FROM orders o 
+        LEFT JOIN carts c ON o.cart_id = c.cart_id
+    `;
+
+    connection.query(fetchOrdersQuery, (err, results) => {
+        if (err) {
+            console.error('Error fetching orders:', err);
+            return res.status(500).json({ message: 'Server error' });
+        }
+        res.json(results);
+    });
+});
+
 // Fetch cart items for the logged-in user
 app.get('/api/cart', (req, res) => {
     const userId = req.session.userId;
