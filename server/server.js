@@ -1,9 +1,10 @@
 const express = require('express');
-const mysql = require('mysql');
+// const mysql = require('mysql2');
+const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path'); // For resolving file paths
 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const session = require('express-session');
@@ -26,12 +27,20 @@ app.use(session({
     saveUninitialized: true,
 }));
 
-// Database connection
-const connection = mysql.createConnection({
-    host: 'localhost',
+// // Database connection
+// const connection = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'techhub',
+//     password: '!@#123Abc',
+//     database: 'TechGearHub'
+// });
+
+const pool = new Pool({
     user: 'techhub',
+    host: 'localhost',
+    database: 'TechGearHub',
     password: '!@#123Abc',
-    database: 'TechGearHub'
+    port: 5432, // default PostgreSQL port
 });
 
 connection.connect((err) => {
@@ -544,6 +553,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/EshopPage.html'));
 });
 
-app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${port}`);
 });
