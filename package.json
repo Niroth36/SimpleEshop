@@ -1,23 +1,35 @@
 {
   "name": "simpleeshop",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "A simple e-commerce application with Node.js and PostgreSQL",
+  "main": "server/server_postgresql.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server/server_postgresql.js",
+    "dev": "nodemon server/server_postgresql.js",
+    "docker:build": "docker build -t simpleeshop .",
+    "docker:run": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": ["ecommerce", "nodejs", "postgresql", "express"],
+  "author": "Your Name",
+  "license": "MIT",
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.2",
-    "body-parser": "^1.20.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.2",
-    "express-session": "^1.18.1",
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "bcrypt": "^5.1.1",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.0"
+    "body-parser": "^1.20.2",
+    "express-session": "^1.17.3",
+    "cors": "^2.8.5",
+    "redis": "^4.6.12",
+    "connect-redis": "^7.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }

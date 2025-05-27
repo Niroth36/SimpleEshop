@@ -3,15 +3,17 @@ const { Pool } = require('pg'); // PostgreSQL driver
 const cors = require('cors');
 const path = require('path');
 
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const RedisStore = require('connect-redis').default;
+const { createClient } = require('redis');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-const SECRET_KEY = 'mYA3eyYD0R-dI420-81COf7';
+const SECRET_KEY = process.env.SECRET_KEY || 'mYA3eyYD0R-dI420-81COf7';
 
 // Enable CORS for client-side requests
 app.use(cors());
@@ -20,29 +22,76 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
 
 app.use(bodyParser.json());
+
+// Redis client setup for sessions
+let sessionStore;
+if (process.env.NODE_ENV === 'production' && process.env.REDIS_HOST) {
+    const redisClient = createClient({
+        socket: {
+            host: process.env.REDIS_HOST || 'localhost',
+            port: process.env.REDIS_PORT || 6379
+        }
+    });
+    
+    redisClient.connect().catch(console.error);
+    sessionStore = new RedisStore({ client: redisClient });
+    console.log('Using Redis for session storage');
+} else {
+    console.log('Using MemoryStore for session storage (development only)');
+}
+
 app.use(session({
+    store: sessionStore,
     secret: SECRET_KEY,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
+    cookie: {
+        secure: false, // Set to true if using HTTPS
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    }
 }));
 
-// PostgreSQL connection pool
+// PostgreSQL connection pool with environment variables for Docker
 const pool = new Pool({
-    user: 'techhub',
-    host: 'localhost',
-    database: 'techgearhub',
-    password: '!@#123Abc',
-    port: 5432, // Default PostgreSQL port
+    user: process.env.DB_USER || 'techhub',
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'techgearhub',
+    password: process.env.DB_PASSWORD || '!@#123Abc',
+    port: process.env.DB_PORT || 5432,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
 });
 
-// Test database connection
-pool.connect((err, client, release) => {
-    if (err) {
-        return console.error('Error acquiring client', err.stack);
+// Database connection with retry logic
+async function connectWithRetry() {
+    const maxRetries = 5;
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+        try {
+            const client = await pool.connect();
+            console.log('Connected to PostgreSQL!');
+            client.release();
+            return;
+        } catch (err) {
+            retries++;
+            console.log(`Database connection attempt ${retries}/${maxRetries} failed. Retrying in 5 seconds...`);
+            console.error('Connection error:', err.message);
+            
+            if (retries === maxRetries) {
+                console.error('Max retries reached. Could not connect to database.');
+                process.exit(1);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
     }
-    console.log('Connected to PostgreSQL!');
-    release();
-});
+}
+
+// Initialize database connection
+connectWithRetry();
 
 // User registration
 app.post('/api/register', async (req, res) => {
@@ -237,10 +286,7 @@ app.get('/api/orders', async (req, res) => {
 app.get('/api/cart', async (req, res) => {
     const userId = req.session.userId;
 
-    console.log('[GET /api/cart] User ID:', userId); // Debug log
-
     if (!userId) {
-        console.log('[GET /api/cart] User not authenticated');
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
@@ -248,10 +294,7 @@ app.get('/api/cart', async (req, res) => {
         const fetchCartQuery = 'SELECT products FROM carts WHERE user_id = $1';
         const cartResult = await pool.query(fetchCartQuery, [userId]);
 
-        console.log('[GET /api/cart] Cart query result:', cartResult.rows.length, 'rows'); // Debug log
-
         if (cartResult.rows.length === 0 || !cartResult.rows[0].products) {
-            console.log('[GET /api/cart] No cart found or empty cart');
             return res.json([]); // Return an empty array if the cart is empty
         }
 
@@ -259,11 +302,9 @@ app.get('/api/cart', async (req, res) => {
         try {
             // PostgreSQL JSONB is already parsed, no need for JSON.parse()
             products = cartResult.rows[0].products || [];
-            console.log('[GET /api/cart] Products from DB:', products); // Debug log
             
             // Ensure it's an array
             if (!Array.isArray(products)) {
-                console.log('[GET /api/cart] Products is not an array, converting...');
                 products = [];
             }
         } catch (parseError) {
@@ -272,12 +313,10 @@ app.get('/api/cart', async (req, res) => {
         }
 
         if (products.length === 0) {
-            console.log('[GET /api/cart] No products in cart');
             return res.json([]); // Return an empty array if no products in cart
         }
 
         const productIds = products.map(p => p.product_id);
-        console.log('[GET /api/cart] Product IDs:', productIds); // Debug log
 
         // Use ANY() for PostgreSQL array comparison
         const fetchProductsQuery = `
@@ -287,7 +326,6 @@ app.get('/api/cart', async (req, res) => {
         `;
         
         const productResult = await pool.query(fetchProductsQuery, [productIds]);
-        console.log('[GET /api/cart] Product details found:', productResult.rows.length); // Debug log
 
         const detailedCart = products.map(item => {
             const product = productResult.rows.find(p => p.product_id === item.product_id);
@@ -297,11 +335,9 @@ app.get('/api/cart', async (req, res) => {
                 price: product ? parseFloat(product.price) : 0, // Ensure price is a number
                 quantity: item.quantity,
             };
-            console.log('[GET /api/cart] Cart item:', cartItem); // Debug log
             return cartItem;
         });
 
-        console.log('[GET /api/cart] Final cart:', detailedCart); // Debug log
         res.json(detailedCart);
     } catch (err) {
         console.error('Error fetching cart:', err);
@@ -483,8 +519,8 @@ app.post('/api/cart', async (req, res) => {
             : 'INSERT INTO carts (user_id, products) VALUES ($1, $2)';
 
         const queryParams = cartId
-            ? [JSON.stringify(products), cartId]
-            : [userId, JSON.stringify(products)];
+            ? [JSON.stringify(products), cartId]  // Convert to JSON string for storage
+            : [userId, JSON.stringify(products)]; // Convert to JSON string for storage
 
         await pool.query(updateCartQuery, queryParams);
 
@@ -513,6 +549,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/EshopPage.html'));
 });
 
-app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${port}`);
 });
