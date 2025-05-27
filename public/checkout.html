@@ -25,14 +25,31 @@
 
     <form id="checkout-form">
         <h2>Payment Details</h2>
-        <input type="text" id="iban" placeholder="IBAN" required>
-        <input type="text" id="cvc" placeholder="CVC" required>
-        <input type="text" id="expiry" placeholder="Expiry Date (MM/YY)" required>
-        <input type="text" id="owner" placeholder="Cardholder Name" required>
+        
+        <div class="form-group">
+            <label for="iban">Card Number (16 digits)</label>
+            <input type="text" id="iban" name="iban" placeholder="1234 5678 9012 3456" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="cvc">CVC (3 digits)</label>
+            <input type="text" id="cvc" name="cvc" placeholder="123" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="expiry">Expiry Date (MM/YY)</label>
+            <input type="text" id="expiry" name="expiry" placeholder="MM/YY" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="owner">Cardholder Name</label>
+            <input type="text" id="owner" name="owner" placeholder="John Doe" required>
+        </div>
+        
         <button type="submit">Complete Order</button>
     </form>
 
-    <button id="clear-cart" style="margin-top: 20px;">Clear Cart</button>
+    <button id="clear-cart">Clear Cart</button>
 
     <script src="checkout.js"></script>
 </body>
