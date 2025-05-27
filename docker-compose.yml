@@ -1,0 +1,64 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: techgearhub-db
+    environment:
+      POSTGRES_USER: techhub
+      POSTGRES_PASSWORD: '!@#123Abc'
+      POSTGRES_DB: techgearhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - techgearhub-network
+    restart: unless-stopped
+
+  # Redis for session storage
+  redis:
+    image: redis:7-alpine
+    container_name: techgearhub-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - techgearhub-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  # Node.js Application
+  app:
+    build: .
+    container_name: techgearhub-app
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: techhub
+      DB_PASSWORD: '!@#123Abc'
+      DB_NAME: techgearhub
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - techgearhub-network
+    restart: unless-stopped
+    volumes:
+      - ./public:/app/public:ro
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  techgearhub-network:
+    driver: bridge
