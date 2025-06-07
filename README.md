@@ -22,3 +22,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO techhub;
 
 -- Exit PostgreSQL
 \q
+
+
+## Push app to DockerHub
+docker build -t niroth36/simpleeshop:latest .
+docker push niroth36/simpleeshop:latest
