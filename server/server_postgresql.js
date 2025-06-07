@@ -7,8 +7,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const RedisStore = require('connect-redis').default;
-const { createClient } = require('redis');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -23,21 +21,28 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 app.use(bodyParser.json());
 
-// Redis client setup for sessions
+// Redis client setup for sessions (conditional)
 let sessionStore;
-if (process.env.NODE_ENV === 'production' && process.env.REDIS_HOST) {
-    const redisClient = createClient({
-        socket: {
-            host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379
-        }
-    });
-    
-    redisClient.connect().catch(console.error);
-    sessionStore = new RedisStore({ client: redisClient });
-    console.log('Using Redis for session storage');
-} else {
-    console.log('Using MemoryStore for session storage (development only)');
+try {
+    if (process.env.NODE_ENV === 'production' && process.env.REDIS_HOST) {
+        const { createClient } = require('redis');
+        const RedisStore = require('connect-redis').default;
+        
+        const redisClient = createClient({
+            socket: {
+                host: process.env.REDIS_HOST || 'localhost',
+                port: process.env.REDIS_PORT || 6379
+            }
+        });
+        
+        redisClient.connect().catch(console.error);
+        sessionStore = new RedisStore({ client: redisClient });
+        console.log('Using Redis for session storage');
+    } else {
+        console.log('Using MemoryStore for session storage (development only)');
+    }
+} catch (error) {
+    console.log('Redis not available, using MemoryStore for session storage');
 }
 
 app.use(session({
