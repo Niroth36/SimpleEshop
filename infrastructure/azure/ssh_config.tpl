@@ -1,7 +1,7 @@
 Host simpleeshop-control-plane
   HostName ${control_plane_ip}
   User azureuser
-  IdentityFile ~/.ssh/id_ed25519
+  IdentityFile ~/.ssh/azure_rsa
   Port 22
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
@@ -10,7 +10,7 @@ Host simpleeshop-control-plane
 Host simpleeshop-worker-${index + 1}
   HostName ${ip}
   User azureuser
-  IdentityFile ~/.ssh/id_ed25519
+  IdentityFile ~/.ssh/azure_rsa
   Port 22
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null

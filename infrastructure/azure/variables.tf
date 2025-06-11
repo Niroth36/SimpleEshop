@@ -7,7 +7,7 @@ variable "resource_group_name" {
 variable "location" {
   description = "Azure region for resources"
   type        = string
-  default     = "Sweden Central"
+  default     = "West Europe"
 }
 
 variable "sub_id" {
@@ -28,13 +28,13 @@ variable "email" {
 variable "control_plane_vm_size" {
   description = "Size of the control plane VM"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B1s"
 }
 
 variable "worker_vm_size" {
   description = "Size of the worker VMs"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B1s"
 }
 
 variable "worker_count" {
