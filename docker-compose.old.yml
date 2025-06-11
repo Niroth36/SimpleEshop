@@ -2,7 +2,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: simpleeshop-postgres
+    container_name: techgearhub-db
     environment:
       POSTGRES_USER: techhub
       POSTGRES_PASSWORD: '!@#123Abc'
@@ -13,36 +13,26 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - simpleeshop-network
+      - techgearhub-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U techhub -d techgearhub"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # Redis for session storage
   redis:
     image: redis:7-alpine
-    container_name: simpleeshop-redis
+    container_name: techgearhub-redis
     ports:
       - "6379:6379"
     networks:
-      - simpleeshop-network
+      - techgearhub-network
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # SimpleEshop Application
+  # Node.js Application
   app:
-    image: niroth36/simpleeshop:x86-alpine
-    container_name: simpleeshop-app
+    build: .
+    container_name: techgearhub-app
     environment:
       NODE_ENV: production
       DB_HOST: postgres
@@ -56,22 +46,19 @@ services:
       - "3000:3000"
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       redis:
-        condition: service_healthy
+        condition: service_started
     networks:
-      - simpleeshop-network
+      - techgearhub-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    volumes:
+      - ./public:/app/public:ro
 
 volumes:
   postgres_data:
   redis_data:
 
 networks:
-  simpleeshop-network:
+  techgearhub-network:
     driver: bridge
