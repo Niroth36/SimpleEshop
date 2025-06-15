@@ -11,7 +11,8 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE
 );
 
 -- Create products table
@@ -62,6 +63,11 @@ INSERT INTO products (id, title, description, image, value, category) VALUES
 (6, 'G.Skill Ripjaws V 16GB RAM', 'Affordable and reliable RAM', 'images/ram2.jpg', 33.00, 'ram'),
 (7, 'Crucial BX500 SSD 1TB', ' High-speed ssd disk', 'images/storage2.jpg', 55.00, 'storage'),
 (8, 'Sapphire Radeon RX 7900 XT 20GB', 'High performance CPU', 'images/gpu2.jpg', 750.00, 'gpu');
+
+-- Insert sample user with email
+INSERT INTO users (username, password, email)
+VALUES ('demo', 'demo123', 'demo@example.com')
+ON CONFLICT (username) DO NOTHING;
 
 -- Update sequences to start from the correct values
 SELECT setval('users_id_seq', 1, false);

@@ -4,14 +4,20 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const username = document.getElementById('register-username').value;
+        const email = document.getElementById('register-email').value; // Get email value
         const password = document.getElementById('register-password').value;
 
         fetch('/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ username, email, password }), // Send email
         })
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => Promise.reject(text));
+                }
+                return response.text();
+            })
             .then(message => {
                 const registerMessage = document.getElementById('register-message');
                 registerMessage.textContent = message;
@@ -19,10 +25,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (message === 'User registered successfully') {
                     alert('Registration successful! You can now log in.');
                     document.getElementById('register-username').value = '';
+                    document.getElementById('register-email').value = ''; // Clear email
                     document.getElementById('register-password').value = '';
                 }
             })
-            .catch(err => console.error('Error during registration:', err));
+            .catch(err => {
+                console.error('Error during registration:', err);
+                const registerMessage = document.getElementById('register-message');
+                registerMessage.textContent = err || 'Registration failed.';
+                registerMessage.style.color = 'red';
+            });
     });
 
     // Handle login
@@ -37,7 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password }),
         })
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => Promise.reject(text));
+                }
+                return response.text();
+            })
             .then(message => {
                 const loginMessage = document.getElementById('login-message');
                 loginMessage.textContent = message;
@@ -47,6 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = '/';
                 }
             })
-            .catch(err => console.error('Error during login:', err));
+            .catch(err => {
+                console.error('Error during login:', err);
+                const loginMessage = document.getElementById('login-message');
+                loginMessage.textContent = err || 'Login failed.';
+                loginMessage.style.color = 'red';
+            });
     });
 });
