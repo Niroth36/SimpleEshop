@@ -1,0 +1,47 @@
+# ansible/playbooks/microk8s/fix-permissions.yml
+---
+- name: Fix MicroK8s permissions and reload groups
+  hosts: microk8s_cluster
+  become: yes
+  
+  tasks:
+    - name: Ensure user is in microk8s group
+      user:
+        name: "{{ ansible_user }}"
+        groups: microk8s
+        append: yes
+        
+    - name: Set ownership of .kube directory
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: yes
+        state: directory
+        
+    - name: Restart SSH service to reload groups
+      systemd:
+        name: ssh
+        state: restarted
+        
+    - name: Wait for SSH to be available
+      wait_for:
+        port: 22
+        host: "{{ ansible_host }}"
+        delay: 10
+      delegate_to: localhost
+      
+- name: Test MicroK8s access after group reload
+  hosts: microk8s_cluster
+  become_user: "{{ ansible_user }}"
+  
+  tasks:
+    - name: Test microk8s access
+      shell: sg microk8s -c "microk8s status --wait-ready"
+      timeout: 300
+      
+    - name: Create kubectl alias
+      lineinfile:
+        path: "/home/{{ ansible_user }}/.bashrc"
+        line: 'alias kubectl="microk8s kubectl"'
+        create: yes

@@ -1,0 +1,28 @@
+# ansible/group_vars/all.yml
+---
+# MicroK8s Configuration
+microk8s:
+  channel: "1.29/stable"
+  addons:
+    - dns
+    - storage
+    - registry
+    - dashboard
+    - metrics-server
+    - helm3
+    - metallb:10.0.1.240-10.0.1.250
+
+# Service Ports
+service_ports:
+  simpleeshop: 30000
+  jenkins: 30080
+  argocd: 30090
+  grafana: 30030
+
+# Application Configuration
+app_config:
+  image: "niroth36/simpleeshop:latest"
+  db_host: "postgres-service"
+  db_user: "techhub"
+  db_password: "!@#123Abc"
+  db_name: "techgearhub"
