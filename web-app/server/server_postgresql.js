@@ -102,19 +102,20 @@ connectWithRetry();
 app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
 
-    if (!username || !email ||!password ) {
-        return res.status(400).send('Username , email and password are required');
+    if (!username || !email || !password) {
+        return res.status(400).send('Username, email and password are required');
     }
 
     try {
         const hash = await bcrypt.hash(password, 10);
-        const query = 'INSERT INTO users (username, emai, password) VALUES ($1, $2, $3)';
+        // FIXED: Changed 'emai' to 'email'
+        const query = 'INSERT INTO users (username, email, password) VALUES ($1, $2, $3)';
         await pool.query(query, [username, email, hash]);
         res.status(201).send('User registered successfully');
     } catch (err) {
         console.error(err);
         if (err.code === '23505') { // PostgreSQL unique violation error code
-            return res.status(400).send('Username already exists');
+            return res.status(400).send('Username or email already exists');
         }
         res.status(500).send('Server error');
     }
