@@ -5,7 +5,7 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY web-app/server/package*.json ./
 
 # Install dependencies (including dev dependencies for building)
 RUN npm ci --include=dev && npm cache clean --force
@@ -26,7 +26,7 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001 -G nodejs
 
 # Copy package files
-COPY package*.json ./
+COPY web-app/server/package*.json ./
 
 # Install only production dependencies
 RUN npm ci --only=production && npm cache clean --force

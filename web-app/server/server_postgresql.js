@@ -100,7 +100,7 @@ connectWithRetry();
 
 // User registration
 app.post('/api/register', async (req, res) => {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
 
     if (!username || !password) {
         return res.status(400).send('Username and password are required');
@@ -114,7 +114,7 @@ app.post('/api/register', async (req, res) => {
     } catch (err) {
         console.error(err);
         if (err.code === '23505') { // PostgreSQL unique violation error code
-            return res.status(400).send('Username already exists');
+            return res.status(400).send('Username or email already exists');
         }
         res.status(500).send('Server error');
     }

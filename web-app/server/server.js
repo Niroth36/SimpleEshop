@@ -50,10 +50,10 @@ connection.connect((err) => {
 
 // User registration
 app.post('/api/register', (req, res) => {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
 
-    if (!username || !password) {
-        return res.status(400).send('Username and password are required');
+    if (!username || !email || !password) {
+        return res.status(400).send('Username, email, and password are required');
     }
 
     bcrypt.hash(password, 10, (err, hash) => {
@@ -62,12 +62,17 @@ app.post('/api/register', (req, res) => {
             return res.status(500).send('Server error');
         }
 
-        const query = 'INSERT INTO users (username, password) VALUES (?, ?)';
-        connection.query(query, [username, hash], (err) => {
+        // Insert into users table including email
+        const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+        connection.query(query, [username, email, hash], (err) => {
             if (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).send('Username or email already exists');
+                }
                 console.error(err);
                 return res.status(500).send('Server error');
             }
+
             res.status(201).send('User registered successfully');
         });
     });
