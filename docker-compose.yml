@@ -41,7 +41,7 @@ services:
 
   # SimpleEshop Application
   app:
-    image: niroth36/simpleeshop:x86-alpine
+    image: niroth36/simpleeshop:latest
     container_name: simpleeshop-app
     environment:
       NODE_ENV: production
