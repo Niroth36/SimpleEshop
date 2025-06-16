@@ -102,15 +102,14 @@ connectWithRetry();
 app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
 
-    if (!username || !email || !password) {
-        return res.status(400).send('Username, email and password are required');
+    if (!username || !password) {
+        return res.status(400).send('Username and password are required');
     }
 
     try {
         const hash = await bcrypt.hash(password, 10);
-        // FIXED: Changed 'emai' to 'email'
-        const query = 'INSERT INTO users (username, email, password) VALUES ($1, $2, $3)';
-        await pool.query(query, [username, email, hash]);
+        const query = 'INSERT INTO users (username, password) VALUES ($1, $2)';
+        await pool.query(query, [username, hash]);
         res.status(201).send('User registered successfully');
     } catch (err) {
         console.error(err);
