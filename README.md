@@ -23,7 +23,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO techhub;
 -- Exit PostgreSQL
 \q
 
-
 ## Push app to DockerHub
 docker build -t niroth36/simpleeshop:latest .
 docker push niroth36/simpleeshop:latest
@@ -139,3 +138,11 @@ You can register a new account and start shopping immediately!
 ```
 
 All services run in isolated Docker containers with persistent data storage.
+
+
+# Check if all VMs are actually running
+az vm list -g simpleeshop-cloud-rg --show-details -o table
+
+# Start the worker VMs if they're not running
+az vm start --resource-group simpleeshop-cloud-rg --name worker-1-vm
+az vm start --resource-group simpleeshop-cloud-rg --name worker-2-vm

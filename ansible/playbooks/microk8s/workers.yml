@@ -1,0 +1,25 @@
+# ansible/playbooks/microk8s/workers.yml
+---
+- name: Join workers to MicroK8s cluster
+  hosts: workers
+  become_user: "{{ ansible_user }}"
+  
+  tasks:
+    - name: Read join command from local file
+      set_fact:
+        join_command: "{{ lookup('file', '/tmp/microk8s_join_command') }}"
+      delegate_to: localhost
+      
+    - name: Check if node is already part of cluster
+      shell: microk8s kubectl get nodes
+      register: cluster_nodes
+      failed_when: false
+      
+    - name: Join worker to cluster
+      shell: "{{ join_command }} --worker"
+      when: ansible_hostname not in cluster_nodes.stdout
+      timeout: 300
+      
+    - name: Wait for node to be ready
+      shell: microk8s status --wait-ready
+      timeout: 300

@@ -1,0 +1,36 @@
+# ansible/playbooks/site.yml
+---
+- name: Deploy Complete MicroK8s Infrastructure
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display deployment info
+      debug:
+        msg: |
+          🚀 Starting MicroK8s deployment:
+          Control Plane: {{ groups['control_plane'][0] }} ({{ hostvars[groups['control_plane'][0]]['ansible_host'] }})
+          Workers: {{ groups['workers'] | join(', ') }}
+
+# Install MicroK8s on all nodes
+- import_playbook: microk8s/install.yml
+
+# Setup control plane with addons
+- import_playbook: microk8s/control-plane.yml
+
+# Join workers to cluster
+- import_playbook: microk8s/workers.yml
+
+# Verify cluster is ready
+- name: Verify cluster status
+  hosts: control_plane
+  become_user: "{{ ansible_user }}"
+  tasks:
+    - name: Get cluster nodes
+      shell: microk8s kubectl get nodes -o wide
+      register: cluster_status
+      
+    - name: Display cluster status
+      debug:
+        msg: |
+          🎉 Cluster Status:
+          {{ cluster_status.stdout }}
