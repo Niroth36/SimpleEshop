@@ -1,4 +1,4 @@
-# ansible/playbooks/microk8s/control-plane.yml
+# ansible/playbooks/microk8s/control-plane.yml - Updated
 ---
 - name: Setup MicroK8s control plane
   hosts: control_plane
@@ -6,17 +6,17 @@
   
   tasks:
     - name: Enable MicroK8s addons
-      shell: "microk8s enable {{ item }}"
+      shell: "sg microk8s -c 'microk8s enable {{ item }}'"
       loop: "{{ microk8s.addons }}"
       register: addon_result
       changed_when: "'is already enabled' not in addon_result.stdout"
       
     - name: Wait for all addons to be ready
-      shell: microk8s status --wait-ready
+      shell: sg microk8s -c "microk8s status --wait-ready"
       timeout: 300
       
     - name: Generate join token for workers
-      shell: microk8s add-node
+      shell: sg microk8s -c "microk8s add-node"
       register: join_command
       
     - name: Extract join command
@@ -27,13 +27,21 @@
       debug:
         msg: "Join command: {{ microk8s_join_command }}"
         
-    - name: Save join command to file
+    - name: Save join command to local file
       copy:
         content: "{{ microk8s_join_command }}"
         dest: "/tmp/microk8s_join_command"
-        
-    - name: Fetch join command to local machine
-      fetch:
-        src: "/tmp/microk8s_join_command"
-        dest: "/tmp/microk8s_join_command"
-        flat: yes
+      delegate_to: localhost
+      
+    - name: Display cluster status
+      shell: sg microk8s -c "microk8s kubectl get nodes -o wide"
+      register: cluster_status
+      
+    - name: Show cluster nodes
+      debug:
+        msg: |
+          🎉 Control Plane Ready!
+          {{ cluster_status.stdout }}
+          
+          Join Command for Workers:
+          {{ microk8s_join_command }}

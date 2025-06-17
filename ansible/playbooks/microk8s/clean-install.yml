@@ -1,0 +1,100 @@
+# ansible/playbooks/microk8s/clean-install.yml
+---
+- name: Clean MicroK8s Installation on All Nodes
+  hosts: microk8s_cluster
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Stop MicroK8s if running
+      shell: snap stop microk8s
+      ignore_errors: yes
+      
+    - name: Remove existing MicroK8s installation
+      snap:
+        name: microk8s
+        state: absent
+      ignore_errors: yes
+      
+    - name: Clean up MicroK8s directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/snap/microk8s
+        - /home/{{ ansible_user }}/.kube
+      ignore_errors: yes
+      
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+        
+    - name: Upgrade system packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+        
+    - name: Install essential packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - vim
+          - htop
+          - net-tools
+          - unzip
+          - snapd
+        state: present
+        
+    - name: Ensure snapd is running
+      systemd:
+        name: snapd
+        state: started
+        enabled: yes
+        
+    - name: Install MicroK8s
+      snap:
+        name: microk8s
+        classic: yes
+        channel: "1.29/stable"
+        state: present
+        
+    - name: Add user to microk8s group
+      user:
+        name: "{{ ansible_user }}"
+        groups: microk8s
+        append: yes
+        
+    - name: Create .kube directory
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+        
+    - name: Wait for MicroK8s to be ready
+      shell: sg microk8s -c "microk8s status --wait-ready"
+      become_user: "{{ ansible_user }}"
+      timeout: 300
+      
+    - name: Create kubectl alias
+      lineinfile:
+        path: "/home/{{ ansible_user }}/.bashrc"
+        line: 'alias kubectl="microk8s kubectl"'
+        create: yes
+        
+    - name: Display MicroK8s status
+      shell: sg microk8s -c "microk8s status"
+      become_user: "{{ ansible_user }}"
+      register: microk8s_status
+      
+    - name: Show status
+      debug:
+        msg: |
+          Node: {{ inventory_hostname }}
+          Region: {{ region }}
+          Status: {{ microk8s_status.stdout }}
