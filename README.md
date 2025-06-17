@@ -218,3 +218,29 @@ az network nsg rule create \
 ansible control_plane -m shell -a "sg microk8s -c 'microk8s kubectl create namespace simpleeshop'"
 control-plane | CHANGED | rc=0 >>
 namespace/simpleeshop created
+
+kubectl config set-cluster microk8s-cluster --insecure-skip-tls-verify=true
+
+# Allow kubelet communication TO the Sweden worker from control plane
+az network nsg rule create \
+  --resource-group simpleeshop-cloud-rg-sweden \
+  --nsg-name sweden-worker-nsg \
+  --name Kubelet-From-Control \
+  --priority 1010 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-range 10250 \
+  --source-address-prefix "108.142.156.228/32"
+
+# Also allow kubelet communication FROM Sweden worker to control plane
+az network nsg rule create \
+  --resource-group simpleeshop-cloud-rg \
+  --nsg-name control-plane-nsg \
+  --name Kubelet-From-Sweden \
+  --priority 1011 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-range 10250 \
+  --source-address-prefix "4.223.108.114/32"
