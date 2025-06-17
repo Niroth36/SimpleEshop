@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simpleeshop
+  namespace: simpleeshop
+  labels:
+    app: simpleeshop
+    tier: frontend
+spec:
+  replicas: 1  # Single replica to fix session persistence
+  selector:
+    matchLabels:
+      app: simpleeshop
+  template:
+    metadata:
+      labels:
+        app: simpleeshop
+        tier: frontend
+    spec:
+      containers:
+      - name: simpleeshop
+        image: niroth36/simpleeshop:latest  # Your specific image
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: simpleeshop-config
+        env:
+        - name: DB_PASSWORD
+          value: "!@#123Abc"
+        ports:
+        - containerPort: 3000
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      nodeSelector:
+        kubernetes.io/hostname: worker-1-vm  # Pin to one node for session persistence

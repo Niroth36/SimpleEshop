@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-init
+  namespace: simpleeshop
+  labels:
+    app: postgres-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: postgres-init
+        image: postgres:15
+        env:
+        - name: PGHOST
+          value: "postgres-service"
+        - name: PGPORT
+          value: "5432"
+        - name: PGDATABASE
+          value: "techgearhub"
+        - name: PGUSER
+          value: "techhub"
+        - name: PGPASSWORD
+          value: "!@#123Abc"
+        volumeMounts:
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        command:
+        - /bin/bash
+        - -c
+        - |
+          echo "🚀 Initializing TechGearHub Database with exact schema..."
+          
+          # Wait for database to be ready
+          until pg_isready -h postgres-service -p 5432 -U techhub; do
+            echo "⏳ Waiting for database..."
+            sleep 2
+          done
+          
+          echo "✅ Database is ready, running initialization script..."
+          
+          # Run the initialization script
+          psql < /docker-entrypoint-initdb.d/init.sql
+          
+          echo "✅ Database initialization completed!"
+          echo "📊 Database Status:"
+          psql -c "\dt"
+          psql -c "SELECT COUNT(*) as product_count FROM products;"
+          psql -c "SELECT COUNT(*) as user_count FROM users;"
+      volumes:
+      - name: init-script
+        configMap:
+          name: postgres-init-sql

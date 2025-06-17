@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: simpleeshop-service
+  namespace: simpleeshop
+  labels:
+    app: simpleeshop
+    tier: frontend
+spec:
+  selector:
+    app: simpleeshop
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30000
+    name: http
+  type: NodePort
+  sessionAffinity: ClientIP  # Session affinity for sticky sessions
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600  # 1 hour session timeout
