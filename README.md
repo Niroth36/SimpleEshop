@@ -146,3 +146,75 @@ az vm list -g simpleeshop-cloud-rg --show-details -o table
 # Start the worker VMs if they're not running
 az vm start --resource-group simpleeshop-cloud-rg --name worker-1-vm
 az vm start --resource-group simpleeshop-cloud-rg --name worker-2-vm
+
+
+# Allow port 25000 from Sweden worker to control plane
+az network nsg rule create \
+  --resource-group simpleeshop-cloud-rg \
+  --nsg-name control-plane-nsg \
+  --name MicroK8s-Sweden \
+  --priority 1010 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-range 25000 \
+  --source-address-prefix "4.223.108.114/32"
+
+  then ansible-playbook playbooks/microk8s/cross-region-workers.yml
+  then
+
+  sleep 30
+niroth@Mac ansible % ansible control_plane -m shell -a "sg microk8s -c 'microk8s kubectl get nodes -o wide'"
+control-plane | CHANGED | rc=0 >>
+NAME               STATUS   ROLES    AGE     VERSION    INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+control-plane-vm   Ready    <none>   8m56s   v1.29.15   10.0.1.4      <none>        Ubuntu 24.04.2 LTS   6.11.0-1015-azure   containerd://1.6.28
+worker-1-vm        Ready    <none>   6m22s   v1.29.15   10.0.2.4      <none>        Ubuntu 24.04.2 LTS   6.11.0-1015-azure   containerd://1.6.28
+niroth@Mac ansible % ansible sweden-worker -m shell -a "sg microk8s -c 'microk8s status'"
+
+sweden-worker | CHANGED | rc=0 >>
+This MicroK8s deployment is acting as a node in a cluster.
+Please use the control plane node.
+niroth@Mac ansible % ansible sweden-worker -m shell -a "sg microk8s -c 'microk8s kubectl get nodes'"
+sweden-worker | CHANGED | rc=0 >>
+This MicroK8s deployment is acting as a node in a cluster. Please use the microk8s kubectl on the master.
+
+# 1. Allow Kubernetes API communication from Sweden
+az network nsg rule create \
+  --resource-group simpleeshop-cloud-rg \
+  --nsg-name control-plane-nsg \
+  --name K8s-API-Sweden \
+  --priority 1006 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-range 16443 \
+  --source-address-prefix "4.223.108.114/32"
+
+# 2. Allow kubelet communication
+az network nsg rule create \
+  --resource-group simpleeshop-cloud-rg \
+  --nsg-name control-plane-nsg \
+  --name Kubelet-Sweden \
+  --priority 1007 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-range 10250 \
+  --source-address-prefix "4.223.108.114/32"
+
+# 3. Allow etcd communication if needed
+az network nsg rule create \
+  --resource-group simpleeshop-cloud-rg \
+  --nsg-name control-plane-nsg \
+  --name Etcd-Sweden \
+  --priority 1008 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Tcp \
+  --destination-port-range 2379-2380 \
+  --source-address-prefix "4.223.108.114/32"
+
+  1. Create Application Namespace
+ansible control_plane -m shell -a "sg microk8s -c 'microk8s kubectl create namespace simpleeshop'"
+control-plane | CHANGED | rc=0 >>
+namespace/simpleeshop created
