@@ -1,4 +1,4 @@
-# ansible/group_vars/all.yml
+# ansible/group_vars/all.yml - Updated for same-region setup
 ---
 # MicroK8s Configuration
 microk8s:
@@ -10,7 +10,7 @@ microk8s:
     - dashboard
     - metrics-server
     - helm3
-    - metallb:10.0.1.240-10.0.1.250
+    - metallb:10.0.1.240-10.0.1.250  # Updated IP range for single VNet
 
 # Service Ports
 service_ports:
@@ -18,6 +18,7 @@ service_ports:
   jenkins: 30080
   argocd: 30090
   grafana: 30030
+  minio: 30900
 
 # Application Configuration
 app_config:

@@ -7,7 +7,7 @@ metadata:
     app: simpleeshop
     tier: frontend
 spec:
-  replicas: 1  # Single replica to fix session persistence
+  replicas: 2  # Single replica to fix session persistence
   selector:
     matchLabels:
       app: simpleeshop
@@ -30,20 +30,6 @@ spec:
         ports:
         - containerPort: 3000
           name: http
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 3000
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          failureThreshold: 5
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          failureThreshold: 5
         resources:
           requests:
             memory: "256Mi"
@@ -51,5 +37,13 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
-      nodeSelector:
-        kubernetes.io/hostname: worker-1-vm  # Pin to one node for session persistence
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - simpleeshop
+            topologyKey: kubernetes.io/hostname

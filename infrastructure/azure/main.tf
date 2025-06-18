@@ -121,6 +121,32 @@ resource "azurerm_network_security_group" "control_plane_nsg" {
     destination_address_prefix = "*"
   }
 
+  # Add this to your control_plane_nsg in main.tf
+  security_rule {
+    name                       = "MicroK8s-API-External"
+    priority                   = 1005
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "16443"
+    source_address_prefix      = "*"  # Or restrict to your IP for security
+    destination_address_prefix = "*"
+  }
+
+  # Microk8s
+  security_rule {
+    name                       = "K8s-API-External"
+    priority                   = 1006
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "6443"
+    source_address_prefix      = "*"  # Change to your IP for security
+    destination_address_prefix = "*"
+  }
+
   tags = {
     Environment = "Development"
     Project     = "SimpleEshop-Cloud"
@@ -415,189 +441,4 @@ resource "null_resource" "update_ssh_config" {
   }
 
   depends_on = [local_file.ssh_config]
-}
-
-
-# ===================================================================
-# SWEDEN REGION RESOURCES (Multi-region worker)
-# ===================================================================
-
-# Additional Resource Group for Sweden
-resource "azurerm_resource_group" "simpleeshop_sweden_rg" {
-  name     = "${var.resource_group_name}-sweden"
-  location = "Sweden Central"
-
-  tags = {
-    Environment = "Development"
-    Project     = "SimpleEshop-Cloud"
-    Purpose     = "University-Project-Sweden"
-  }
-}
-
-# Sweden Virtual Network
-resource "azurerm_virtual_network" "simpleeshop_sweden_vnet" {
-  name                = "simpleeshop-sweden-vnet"
-  resource_group_name = azurerm_resource_group.simpleeshop_sweden_rg.name
-  location            = azurerm_resource_group.simpleeshop_sweden_rg.location
-  address_space       = ["10.1.0.0/16"]  # Different address space
-
-  tags = {
-    Environment = "Development"
-    Project     = "SimpleEshop-Cloud"
-  }
-}
-
-# Sweden Subnet
-resource "azurerm_subnet" "sweden_worker_subnet" {
-  name                 = "sweden-worker-subnet"
-  resource_group_name  = azurerm_resource_group.simpleeshop_sweden_rg.name
-  virtual_network_name = azurerm_virtual_network.simpleeshop_sweden_vnet.name
-  address_prefixes     = ["10.1.2.0/24"]
-}
-
-# Sweden NSG (copy from existing worker NSG)
-resource "azurerm_network_security_group" "sweden_worker_nsg" {
-  name                = "sweden-worker-nsg"
-  location            = azurerm_resource_group.simpleeshop_sweden_rg.location
-  resource_group_name = azurerm_resource_group.simpleeshop_sweden_rg.name
-
-  # SSH access
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  # SimpleEshop Application
-  security_rule {
-    name                       = "SimpleEshop"
-    priority                   = 1002
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "3000"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  # NodePort range for Kubernetes services
-  security_rule {
-    name                       = "K8s-NodePort"
-    priority                   = 1005
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "30000-32767"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  tags = {
-    Environment = "Development"
-    Project     = "SimpleEshop-Cloud"
-  }
-}
-
-# Sweden Public IP
-resource "azurerm_public_ip" "sweden_worker_pip" {
-  name                = "sweden-worker-pip"
-  location            = azurerm_resource_group.simpleeshop_sweden_rg.location
-  resource_group_name = azurerm_resource_group.simpleeshop_sweden_rg.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-
-  tags = {
-    Environment = "Development"
-    Project     = "SimpleEshop-Cloud"
-    Role        = "Sweden-Worker"
-  }
-}
-
-# Sweden Network Interface
-resource "azurerm_network_interface" "sweden_worker_nic" {
-  name                = "sweden-worker-nic"
-  location            = azurerm_resource_group.simpleeshop_sweden_rg.location
-  resource_group_name = azurerm_resource_group.simpleeshop_sweden_rg.name
-
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.sweden_worker_subnet.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.sweden_worker_pip.id
-  }
-
-  tags = {
-    Environment = "Development"
-    Project     = "SimpleEshop-Cloud"
-    Role        = "Sweden-Worker"
-  }
-}
-
-# Sweden NSG Association
-resource "azurerm_network_interface_security_group_association" "sweden_worker_nsg_association" {
-  network_interface_id      = azurerm_network_interface.sweden_worker_nic.id
-  network_security_group_id = azurerm_network_security_group.sweden_worker_nsg.id
-}
-
-# Sweden Worker VM
-resource "azurerm_linux_virtual_machine" "sweden_worker_vm" {
-  name                  = "sweden-worker-vm"
-  location              = azurerm_resource_group.simpleeshop_sweden_rg.location
-  resource_group_name   = azurerm_resource_group.simpleeshop_sweden_rg.name
-  network_interface_ids = [azurerm_network_interface.sweden_worker_nic.id]
-  size                  = var.worker_vm_size
-  admin_username        = "azureuser"
-
-  admin_ssh_key {
-    username   = "azureuser"
-    public_key = var.ssh_public_key
-  }
-
-  os_disk {
-    name                 = "sweden-worker-os-disk"
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
-    version   = "latest"
-  }
-
-  tags = {
-    Environment = "Development"
-    Project     = "SimpleEshop-Cloud"
-    Role        = "Sweden-Worker"
-  }
-}
-
-# Auto-shutdown for Sweden worker
-resource "azurerm_dev_test_global_vm_shutdown_schedule" "sweden_worker_shutdown" {
-  virtual_machine_id = azurerm_linux_virtual_machine.sweden_worker_vm.id
-  location           = azurerm_resource_group.simpleeshop_sweden_rg.location
-
-  daily_recurrence_time = "0200"
-  timezone              = "W. Europe Standard Time"
-  enabled               = true
-
-  notification_settings {
-    enabled         = true
-    email           = var.email
-    time_in_minutes = 30
-  }
-
-  tags = {
-    Environment = "Development"
-    Project     = "SimpleEshop-Cloud"
-  }
 }

@@ -1,17 +1,16 @@
-# ansible/playbooks/site.yml - Fixed for multi-region
+# ansible/playbooks/site.yml - Simplified for same-region setup
 ---
-- name: Deploy Multi-Region MicroK8s Infrastructure
+- name: Deploy MicroK8s Infrastructure
   hosts: localhost
   gather_facts: false
   tasks:
     - name: Display deployment info
       debug:
         msg: |
-          🚀 Starting Multi-Region MicroK8s Deployment:
+          🚀 Starting MicroK8s Deployment:
           
-          Control Plane (West Europe): {{ groups['control_plane'][0] }} ({{ hostvars[groups['control_plane'][0]]['ansible_host'] }})
-          West Europe Workers: {{ groups['west_europe_workers'] | join(', ') }}
-          Sweden Workers: {{ groups['sweden_workers'] | join(', ') }}
+          Control Plane: {{ groups['control_plane'][0] }} ({{ hostvars[groups['control_plane'][0]]['ansible_host'] }})
+          Workers: {{ groups['workers'] | join(', ') }}
           
           Total Nodes: {{ groups['microk8s_cluster'] | length }}
 
@@ -21,45 +20,11 @@
 # Phase 2: Setup control plane with addons
 - import_playbook: microk8s/control-plane.yml
 
-# Phase 3: Join West Europe workers (same VNet)
-- name: Join West Europe workers to cluster
-  hosts: west_europe_workers
-  become_user: "{{ ansible_user }}"
-  
-  tasks:
-    - name: Read join command from local file
-      set_fact:
-        join_command: "{{ lookup('file', '/tmp/microk8s_join_command') }}"
-      delegate_to: localhost
-      run_once: true
-      
-    - name: Check if node is already part of cluster
-      shell: sg microk8s -c "microk8s kubectl get nodes"
-      register: cluster_nodes
-      failed_when: false
-      delegate_to: "{{ groups['control_plane'][0] }}"
-      
-    - name: Join West Europe worker to cluster
-      shell: "sg microk8s -c '{{ join_command }} --worker'"
-      when: ansible_hostname not in cluster_nodes.stdout
-      timeout: 300
-      register: join_result
-      
-    - name: Display join result
-      debug:
-        msg: |
-          Node: {{ inventory_hostname }} ({{ region }})
-          Join Status: {{ 'Already joined' if ansible_hostname in cluster_nodes.stdout else 'Joined successfully' }}
-          
-    - name: Wait for node to be ready
-      shell: sg microk8s -c "microk8s status --wait-ready"
-      timeout: 300
+# Phase 3: Join workers to cluster (same VNet - easy!)
+- import_playbook: microk8s/workers.yml
 
-# Phase 4: Join Sweden workers (cross-region using public IP)
-- import_playbook: microk8s/cross-region-workers.yml
-
-# Phase 5: Verify multi-region cluster
-- name: Verify Multi-Region Cluster
+# Phase 4: Verify cluster
+- name: Verify Cluster
   hosts: control_plane
   become_user: "{{ ansible_user }}"
   tasks:
@@ -74,7 +39,7 @@
     - name: Display final cluster status
       debug:
         msg: |
-          🎉 Multi-Region MicroK8s Cluster Ready!
+          🎉 MicroK8s Cluster Ready!
           
           === NODES ===
           {{ final_cluster_status.stdout }}
@@ -87,6 +52,6 @@
           kubectl access: ssh -i ~/.ssh/azure_rsa azureuser@{{ ansible_host }}
           
           === NEXT STEPS ===
-          1. Install applications: ansible-playbook playbooks/applications/deploy-all.yml
-          2. Setup monitoring: ansible-playbook playbooks/monitoring/setup.yml
-          3. Deploy SimpleEshop: ansible-playbook playbooks/applications/simpleeshop.yml
+          1. Deploy applications
+          2. Setup monitoring
+          3. Deploy SimpleEshop
