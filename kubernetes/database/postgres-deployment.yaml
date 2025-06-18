@@ -66,5 +66,3 @@ spec:
       - name: postgres-storage
         persistentVolumeClaim:
           claimName: postgres-pvc
-      nodeSelector:
-        kubernetes.io/hostname: control-plane-vm

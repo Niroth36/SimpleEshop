@@ -56,7 +56,7 @@ variable "worker_vm_size" {
 }
 
 variable "worker_count" {
-  description = "Number of worker VMs to create in West Europe (Sweden worker is separate)"
+  description = "Number of worker VMs to create in West Europe"
   type        = number
   default     = 1  # Changed from 2 to 1 for quota compliance
   
@@ -64,17 +64,4 @@ variable "worker_count" {
     condition     = var.worker_count >= 1 && var.worker_count <= 3
     error_message = "Worker count must be between 1 and 3 (due to quota limits)."
   }
-}
-
-# Optional: Add variable for Sweden region control
-variable "enable_sweden_worker" {
-  description = "Whether to create a worker node in Sweden Central"
-  type        = bool
-  default     = true
-}
-
-variable "sweden_location" {
-  description = "Azure region for Sweden resources"
-  type        = string
-  default     = "Sweden Central"
 }

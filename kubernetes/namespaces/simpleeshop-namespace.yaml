@@ -5,4 +5,4 @@ metadata:
   labels:
     environment: development
     project: simpleeshop-cloud
-    region: multi-region
+    region: west-europe
