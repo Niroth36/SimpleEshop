@@ -1,0 +1,25 @@
+FROM node:18-alpine
+
+# Create app directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package.json ./
+
+# Install app dependencies
+RUN npm install --production
+
+# Copy handler.js, index.js and other JSON files
+COPY handler.js index.js *.json ./
+
+# Install additional dependencies
+RUN npm install minio
+
+# Set environment variables
+ENV NODE_ENV=production
+
+# Expose port
+EXPOSE 8080
+
+# Start the service
+CMD ["node", "index.js"]

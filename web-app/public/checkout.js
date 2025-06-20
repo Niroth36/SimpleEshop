@@ -59,22 +59,22 @@ function validateExpiry(expiry) {
     if (!/^\d{2}\/\d{2}$/.test(expiry)) {
         return false;
     }
-    
+
     const [month, year] = expiry.split('/').map(num => parseInt(num));
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear() % 100; // Get last 2 digits
     const currentMonth = currentDate.getMonth() + 1;
-    
+
     // Validate month (01-12)
     if (month < 1 || month > 12) {
         return false;
     }
-    
+
     // Check if expiry date is in the future
     if (year < currentYear || (year === currentYear && month < currentMonth)) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -100,12 +100,12 @@ function formatCVC(input) {
 function formatExpiry(input) {
     // Remove all non-digits
     let value = input.value.replace(/\D/g, '');
-    
+
     // Add slash after 2 digits and limit to MM/YY format
     if (value.length >= 2) {
         value = value.substring(0, 2) + '/' + value.substring(2, 4);
     }
-    
+
     input.value = value;
 }
 
@@ -210,9 +210,13 @@ if (checkoutForm) {
             .then(response => {
                 if (response.ok) {
                     alert('Order placed successfully!');
-                    loadCheckoutSummary(); // Reload the summary without clearing the cart
+                    loadCheckoutSummary(); // Reload the summary to show an empty cart
                     // Clear the form
                     checkoutForm.reset();
+                    // Redirect to home page after a short delay
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1500);
                 } else {
                     response.text().then(message => alert(`Failed to complete the order: ${message}`));
                 }
