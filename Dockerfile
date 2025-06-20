@@ -4,14 +4,15 @@ FROM node:18-alpine
 # Set working directory inside container
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
-COPY package*.json ./
+# Copy package.json and package-lock.json from the correct location
+COPY web-app/server/package*.json ./
 
 # Install dependencies
 RUN npm ci --only=production
 
 # Copy application code
-COPY . .
+COPY web-app/ ./web-app/
+COPY database/ ./database/
 
 # Create a non-root user for security
 RUN addgroup -g 1001 -S nodejs
@@ -25,4 +26,4 @@ USER nextjs
 EXPOSE 3000
 
 # Define the command to run the application
-CMD ["node", "server/server_postgresql.js"]
+CMD ["node", "web-app/server/server_postgresql.js"]
