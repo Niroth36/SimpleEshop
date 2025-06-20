@@ -1,0 +1,20 @@
+{
+  "name": "order-confirmation-email",
+  "version": "1.0.0",
+  "description": "Service to send order confirmation emails to users",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "email",
+    "order",
+    "confirmation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "nodemailer": "^6.9.0",
+    "minio": "^7.0.32"
+  }
+}
