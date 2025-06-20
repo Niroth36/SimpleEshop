@@ -1,0 +1,18 @@
+{
+  "name": "welcome-email",
+  "version": "1.0.0",
+  "description": "Service to send welcome emails to new users",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "serverless",
+    "email"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "nodemailer": "^6.9.0"
+  }
+}
