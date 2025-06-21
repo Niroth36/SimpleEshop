@@ -1,0 +1,121 @@
+---
+- name: Install and Configure Jenkins
+  hosts: control_plane
+  become_user: "{{ ansible_user }}"
+  
+  tasks:
+    - name: Create Jenkins namespace
+      shell: sg microk8s -c "microk8s kubectl create namespace jenkins"
+      register: namespace_result
+      failed_when: namespace_result.rc != 0 and "AlreadyExists" not in namespace_result.stderr
+      changed_when: namespace_result.rc == 0
+      
+    - name: Create Jenkins PVC
+      shell: |
+        cat <<EOF | sg microk8s -c "microk8s kubectl apply -f -"
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: jenkins-pvc
+          namespace: jenkins
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+        EOF
+      register: pvc_result
+      changed_when: pvc_result.rc == 0
+      
+    - name: Create Jenkins deployment
+      shell: |
+        cat <<EOF | sg microk8s -c "microk8s kubectl apply -f -"
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: jenkins
+          namespace: jenkins
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: jenkins
+          template:
+            metadata:
+              labels:
+                app: jenkins
+            spec:
+              containers:
+              - name: jenkins
+                image: jenkins/jenkins:lts
+                ports:
+                - containerPort: 8080
+                  name: http
+                - containerPort: 50000
+                  name: jnlp
+                volumeMounts:
+                - name: jenkins-home
+                  mountPath: /var/jenkins_home
+                env:
+                - name: JAVA_OPTS
+                  value: "-Djenkins.install.runSetupWizard=false"
+              volumes:
+              - name: jenkins-home
+                persistentVolumeClaim:
+                  claimName: jenkins-pvc
+        EOF
+      register: deployment_result
+      changed_when: deployment_result.rc == 0
+      
+    - name: Create Jenkins service
+      shell: |
+        cat <<EOF | sg microk8s -c "microk8s kubectl apply -f -"
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: jenkins
+          namespace: jenkins
+        spec:
+          type: NodePort
+          ports:
+          - port: 8080
+            targetPort: 8080
+            nodePort: 30080
+            name: http
+          - port: 50000
+            targetPort: 50000
+            name: jnlp
+          selector:
+            app: jenkins
+        EOF
+      register: service_result
+      changed_when: service_result.rc == 0
+      
+    - name: Wait for Jenkins to be ready
+      shell: sg microk8s -c "microk8s kubectl wait --for=condition=available --timeout=300s deployment/jenkins -n jenkins"
+      register: wait_result
+      changed_when: wait_result.rc == 0
+      
+    - name: Display Jenkins access information
+      debug:
+        msg: |
+          🎉 Jenkins has been successfully installed!
+          
+          Access Jenkins UI:
+          - URL: http://<node-ip>:30080
+          
+          To get the Jenkins admin password, run:
+          microk8s kubectl exec -it $(microk8s kubectl get pods -n jenkins -l app=jenkins -o jsonpath='{.items[0].metadata.name}') -n jenkins -- cat /var/jenkins_home/secrets/initialAdminPassword
+          
+          Configure Jenkins with the following plugins:
+          - Git
+          - Docker
+          - Pipeline
+          - Credentials
+          
+          Create the following credentials:
+          - docker-hub-credentials (Username with password)
+          - github-credentials (Username with password)
+          
+          Create a pipeline job that uses the Jenkinsfile from the repository.

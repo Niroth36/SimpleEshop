@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-confirmation-email
+  namespace: simpleeshop
+  labels:
+    app: order-confirmation-email
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-confirmation-email
+  template:
+    metadata:
+      labels:
+        app: order-confirmation-email
+        tier: backend
+    spec:
+      containers:
+      - name: order-confirmation-email
+        image: niroth36/order-confirmation-email:latest
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: order-confirmation-email-config
+        ports:
+        - containerPort: 8081
+          name: http
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 20
+          periodSeconds: 15
