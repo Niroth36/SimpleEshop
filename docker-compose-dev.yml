@@ -1,0 +1,175 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: simpleeshop-postgres
+    environment:
+      POSTGRES_USER: techhub
+      POSTGRES_PASSWORD: '!@#123Abc'
+      POSTGRES_DB: techgearhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techhub -d techgearhub"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for session storage
+  redis:
+    image: redis:7-alpine
+    container_name: simpleeshop-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # SimpleEshop Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simpleeshop-app
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: techhub
+      DB_PASSWORD: '!@#123Abc'
+      DB_NAME: techgearhub
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - ./web-app:/app/web-app
+      - ./database:/app/database
+    command: >
+      sh -c "npm install && 
+             npm install minio nodemailer && 
+             npx nodemon web-app/server/server_postgresql.js"
+
+      #minio storage
+  minio:
+    image: minio/minio:latest
+    container_name: simpleeshop-minio
+    ports:
+      - "9002:9000"     # S3 Console
+      - "9001:9001"     # MinIO Admin Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address :9001
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+  # Mailpit for email testing
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: simpleeshop-mailpit
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI port
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+
+  # Welcome Email Service
+  welcome-email:
+    build:
+      context: ./web-app/server/email-services/welcome-email
+      dockerfile: Dockerfile.standalone
+    container_name: simpleeshop-welcome-email
+    ports:
+      - "8080:8080"  # Expose the health check endpoint
+    environment:
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    depends_on:
+      - minio
+      - mailpit
+
+  # Order Confirmation Email Service
+  order-confirmation-email:
+    build:
+      context: ./web-app/server/email-services/order-confirmation-email
+      dockerfile: Dockerfile.standalone
+    container_name: simpleeshop-order-confirmation-email
+    ports:
+      - "8081:8081"  # Expose the health check endpoint
+    environment:
+      MINIO_HOST: minio
+      MINIO_PORT: 9002
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    depends_on:
+      - minio
+      - mailpit
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  simpleeshop-network:
+    driver: bridge
