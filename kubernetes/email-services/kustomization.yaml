@@ -10,3 +10,5 @@ resources:
   - order-confirmation-email-configmap.yaml
   - order-confirmation-email-deployment.yaml
   - order-confirmation-email-service.yaml
+  - mailpit-deployment.yaml
+  - mailpit-service.yaml
