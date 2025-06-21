@@ -236,6 +236,19 @@ resource "azurerm_network_security_group" "worker_nsg" {
     destination_address_prefix = "*"
   }
 
+  # ArgoCD HTTPS
+  security_rule {
+    name                       = "ArgoCD-HTTPS"
+    priority                   = 1006
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "30443"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
   tags = {
     Environment = "Development"
     Project     = "SimpleEshop-Cloud"
