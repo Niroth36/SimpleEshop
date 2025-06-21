@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-confirmation-email-config
+  namespace: simpleeshop
+  labels:
+    app: order-confirmation-email
+data:
+  MINIO_HOST: "minio-service"
+  MINIO_PORT: "9000"
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "minioadmin"
+  SMTP_HOST: "mailpit-service"
+  SMTP_PORT: "1025"
+  NODE_ENV: "production"
