@@ -39,6 +39,15 @@ A complete e-commerce application with Node.js, PostgreSQL, and Redis.
 - Docker and Docker Compose installed
 - No other setup required!
 
+### GitOps Deployment
+For production deployments, we use a GitOps workflow with Jenkins and ArgoCD. To publish your application, simply push your code to GitHub, and the CI/CD pipeline will automatically build, push, and deploy it. See [GITOPS.md](GITOPS.md) for detailed step-by-step instructions on how to publish and verify your deployment.
+
+### Deployment Guide
+For comprehensive step-by-step instructions on how to deploy the entire SimpleEshop infrastructure correctly, from provisioning cloud resources to deploying the application using GitOps, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+### Infrastructure Documentation
+For detailed information about all the technologies used in this project, including OpenTofu (formerly Terraform), Ansible, Kubernetes, Docker, and more, see [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
+
 ### Run the Application
 
 1. **Download the files:**
@@ -80,6 +89,23 @@ docker compose down
 
 # Stop and remove data (complete cleanup)
 docker compose down -v
+```
+
+### 🧪 Testing Locally
+
+For comprehensive instructions on how to test SimpleEshop locally, see [LOCAL-TESTING.md](LOCAL-TESTING.md).
+
+This guide covers:
+- Setting up the local testing environment
+- Running system health checks
+- Component testing (email services, integration)
+- Application testing (user registration, shopping cart, checkout)
+- Database testing
+- Troubleshooting common issues
+
+You can run all tests with:
+```bash
+./run-all-tests.sh
 ```
 
 ## 🎯 Features
@@ -342,3 +368,15 @@ The order confirmation email service:
 6. Logs the success message with the recipient's email address and order ID
 
 The email includes a nicely formatted table with the order items, quantities, prices, and subtotals, as well as the order total.
+
+## 🚢 Kubernetes-Optimized Email Services
+
+For Kubernetes deployments, the email services have been optimized with:
+
+1. **Kubernetes Manifests**: Deployment, Service, and ConfigMap resources
+2. **Health Checks**: HTTP endpoints for readiness and liveness probes
+3. **Resource Management**: CPU and memory requests and limits
+4. **Configuration**: Externalized in ConfigMaps
+5. **CI/CD Integration**: Automated builds and deployments
+
+See the [kubernetes/email-services](kubernetes/email-services) directory for the Kubernetes manifests and deployment instructions.
