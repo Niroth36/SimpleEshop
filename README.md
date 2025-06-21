@@ -39,6 +39,19 @@ A complete e-commerce application with Node.js, PostgreSQL, and Redis.
 - Docker and Docker Compose installed
 - No other setup required!
 
+### Email Testing with Mailpit
+SimpleEshop uses Mailpit for email testing. When running locally with Docker Compose, you can access the Mailpit web interface at http://localhost:8025. 
+
+In Kubernetes, Mailpit is deployed as part of the email services and can be accessed through port-forwarding:
+
+```bash
+kubectl port-forward svc/mailpit-service -n simpleeshop 8025:8025
+```
+
+Then open http://localhost:8025 in your browser.
+
+For detailed instructions on accessing Mailpit in Kubernetes, including troubleshooting tips and alternative access methods, see [MAILPIT-ACCESS.md](MAILPIT-ACCESS.md).
+
 ### GitOps Deployment
 For production deployments, we use a GitOps workflow with Jenkins and ArgoCD. To publish your application, simply push your code to GitHub, and the CI/CD pipeline will automatically build, push, and deploy it. See [GITOPS.md](GITOPS.md) for detailed step-by-step instructions on how to publish and verify your deployment.
 

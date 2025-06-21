@@ -32,6 +32,17 @@ echo "   This may take a few minutes..."
 kubectl wait --for=condition=ready pod -l app=simpleeshop -n simpleeshop --timeout=300s
 
 echo ""
+echo "6️⃣  Deploying email services and Mailpit..."
+kubectl apply -k ../email-services/
+
+echo ""
+echo "7️⃣  Waiting for email services to be ready..."
+echo "   This may take a few minutes..."
+kubectl wait --for=condition=ready pod -l app=welcome-email -n simpleeshop --timeout=300s
+kubectl wait --for=condition=ready pod -l app=order-confirmation-email -n simpleeshop --timeout=300s
+kubectl wait --for=condition=ready pod -l app=mailpit -n simpleeshop --timeout=300s
+
+echo ""
 echo "✅ Deployment complete!"
 echo ""
 echo "📊 Cluster Status:"
@@ -50,6 +61,11 @@ echo "├───────────────────────�
 echo "│ Control Plane:     http://108.142.156.228:30000             │"
 echo "│ West Europe:       http://128.251.152.53:30000              │"
 echo "│ Sweden Central:    http://4.223.108.114:30000               │"
+echo "├─────────────────────────────────────────────────────────────┤"
+echo "│ Mailpit UI:        kubectl port-forward svc/mailpit-service │"
+echo "│                    -n simpleeshop 8025:8025                 │"
+echo "│                    Then visit: http://localhost:8025        │"
+echo "│                    (See MAILPIT-ACCESS.md for details)      │"
 echo "└─────────────────────────────────────────────────────────────┘"
 echo ""
 echo "🔍 View real-time pods:"
