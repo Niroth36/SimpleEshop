@@ -2,51 +2,89 @@
 - name: Install and Configure ArgoCD
   hosts: control_plane
   become_user: "{{ ansible_user }}"
-  
+
   tasks:
     - name: Create ArgoCD namespace
-      shell: sg microk8s -c "microk8s kubectl create namespace argocd"
+      shell: |
+        sg microk8s -c "microk8s kubectl create namespace argocd"
       register: namespace_result
       failed_when: namespace_result.rc != 0 and "AlreadyExists" not in namespace_result.stderr
       changed_when: namespace_result.rc == 0
-      
+
     - name: Apply ArgoCD manifests
-      shell: sg microk8s -c "microk8s kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+      shell: |
+        sg microk8s -c "microk8s kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
       register: argocd_result
+      failed_when: argocd_result.rc != 0
       changed_when: argocd_result.rc == 0
-      
+
     - name: Wait for ArgoCD server to be ready
-      shell: sg microk8s -c "microk8s kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd"
+      shell: |
+        sg microk8s -c "microk8s kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd"
       register: wait_result
+      failed_when: wait_result.rc != 0
       changed_when: wait_result.rc == 0
-      
-    - name: Expose ArgoCD server
-      shell: sg microk8s -c "microk8s kubectl patch svc argocd-server -n argocd -p '{\"spec\": {\"type\": \"NodePort\"}}'"
+
+    - name: Expose ArgoCD server with specific nodePort
+      shell: |
+        sg microk8s -c "microk8s kubectl patch svc argocd-server -n argocd -p '{\"spec\": {\"type\": \"NodePort\", \"ports\": [{\"port\": 443, \"targetPort\": 8080, \"nodePort\": 30443, \"name\": \"https\"}]}}'"
       register: expose_result
+      failed_when: expose_result.rc != 0
       changed_when: expose_result.rc == 0
-      
+
     - name: Get ArgoCD admin password
-      shell: sg microk8s -c "microk8s kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+      shell: |
+        sg microk8s -c "microk8s kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
       register: admin_password
+      failed_when: admin_password.rc != 0
       changed_when: false
-      
+
     - name: Display ArgoCD admin password
       debug:
         msg: "ArgoCD admin password: {{ admin_password.stdout }}"
-        
+
+    - name: Create SimpleEshop ArgoCD application file on remote
+      copy:
+        content: |
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: simpleeshop
+            namespace: argocd
+          spec:
+            project: default
+            source:
+              repoURL: https://github.com/Niroth36/SimpleEshop-gitops.git
+              targetRevision: main
+              path: kubernetes
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: simpleeshop
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+              - CreateNamespace=true
+        dest: "/tmp/simpleeshop-application.yaml"
+        mode: '0644'
+      register: copy_result
+
     - name: Apply SimpleEshop ArgoCD application
-      shell: sg microk8s -c "microk8s kubectl apply -f {{ playbook_dir }}/../../kubernetes/argocd/simpleeshop-application.yaml"
+      shell: |
+        sg microk8s -c "microk8s kubectl apply -f /tmp/simpleeshop-application.yaml"
       register: app_result
+      failed_when: app_result.rc != 0
       changed_when: app_result.rc == 0
-      
+
     - name: Display ArgoCD access information
       debug:
         msg: |
           🎉 ArgoCD has been successfully installed!
-          
+
           Access ArgoCD UI:
-          - URL: https://<node-ip>:<node-port>
+          - URL: https://{{ ansible_host }}:30443
           - Username: admin
           - Password: {{ admin_password.stdout }}
-          
+
           The SimpleEshop application has been configured in ArgoCD and will be automatically synchronized.

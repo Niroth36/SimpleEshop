@@ -59,7 +59,7 @@
 
           === GITOPS TOOLS ===
           Jenkins: http://{{ ansible_host }}:30080
-          ArgoCD: https://{{ ansible_host }}:<argocd-nodeport>
+          ArgoCD: https://{{ ansible_host }}:30443
 
           === NEXT STEPS ===
           1. Configure Jenkins credentials
