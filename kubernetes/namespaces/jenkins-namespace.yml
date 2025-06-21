@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins
+  labels:
+    environment: development
+    project: simpleeshop-cloud
+    tier: cicd

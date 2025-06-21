@@ -3,12 +3,14 @@ kind: Application
 metadata:
   name: simpleeshop
   namespace: argocd
+  labels:
+    app: simpleeshop
 spec:
   project: default
   source:
     repoURL: https://github.com/Niroth36/SimpleEshop-gitops.git
     targetRevision: main
-    path: kubernetes
+    path: kubernetes/simpleeshop
   destination:
     server: https://kubernetes.default.svc
     namespace: simpleeshop
@@ -18,3 +20,5 @@ spec:
       selfHeal: true
     syncOptions:
     - CreateNamespace=true
+    - ApplyOutOfSyncOnly=true
+  revisionHistoryLimit: 10
