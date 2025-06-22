@@ -150,7 +150,7 @@ resource "azurerm_network_security_group" "control_plane_nsg" {
   # MinIO Console NodePort
   security_rule {
     name                       = "MinIO-Console"
-    priority                   = 1006
+    priority                   = 1008
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -252,7 +252,7 @@ resource "azurerm_network_security_group" "worker_nsg" {
   # NodePort range for Kubernetes services
   security_rule {
     name                       = "K8s-NodePort"
-    priority                   = 1005
+    priority                   = 1007
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
