@@ -31,7 +31,6 @@ const server = http.createServer((req, res) => {
 
         req.on('end', async () => {
             try {
-                console.log("Received webhook notification:", body);
                 const notification = JSON.parse(body);
 
                 // Process the notification
@@ -80,8 +79,7 @@ console.log("Setting up MinIO bucket notification listener...");
 // Function to process order confirmation events
 async function processOrderConfirmation(notification) {
     try {
-        console.log(`[DEBUG] Processing event: ${notification.eventName} for ${notification.s3.object.key}`);
-        console.log(`[DEBUG] Full notification: ${JSON.stringify(notification)}`);
+        console.log(`Processing event: ${notification.eventName} for ${notification.s3.object.key}`);
 
         // Only process object creation events
         if (notification.eventName !== "s3:ObjectCreated:Put" && notification.eventName !== "s3:ObjectCreated:Post") {
@@ -103,13 +101,11 @@ async function processOrderConfirmation(notification) {
         dataStream.on("end", async () => {
             try {
                 // Parse the order data
-                console.log(`[DEBUG] Raw order data: ${orderData}`);
                 const orderDataObj = JSON.parse(orderData);
-                console.log(`[DEBUG] Parsed order data: ${JSON.stringify(orderDataObj)}`);
 
                 // Call the handler function
                 const result = await handler({ body: orderDataObj }, {});
-                console.log(`[DEBUG] Handler result: ${JSON.stringify(result)}`);
+                console.log(`Handler result: ${result.statusCode}`);
             } catch (error) {
                 console.error("Error processing order data:", error);
             }
@@ -127,25 +123,20 @@ async function processOrderConfirmation(notification) {
 async function setupBucketNotification() {
     try {
         // Check if bucket exists, create it if not
-        console.log("[DEBUG] Checking if order-confirmations bucket exists...");
         const bucketExists = await minioClient.bucketExists("order-confirmations");
-        console.log(`[DEBUG] Bucket exists: ${bucketExists}`);
 
         if (!bucketExists) {
-            console.log("[DEBUG] Creating order-confirmations bucket...");
+            console.log("Creating order-confirmations bucket...");
             await minioClient.makeBucket("order-confirmations");
-            console.log("[DEBUG] Bucket created successfully");
         }
 
-        console.log("[DEBUG] Setting up bucket notification listener...");
+        console.log("Setting up bucket notification listener...");
 
         // Listen for bucket notifications
         const listener = minioClient.listenBucketNotification("order-confirmations", "", "", ["s3:ObjectCreated:*"]);
 
         listener.on("notification", async notification => {
-            console.log("[DEBUG] Received notification from listener:", notification);
-            console.log(`[DEBUG] Notification type: ${typeof notification}`);
-            console.log(`[DEBUG] Notification JSON: ${JSON.stringify(notification)}`);
+            console.log("Received notification from listener");
             await processOrderConfirmation(notification);
         });
 
@@ -159,16 +150,14 @@ async function setupBucketNotification() {
 
 // Wait for MinIO to be ready before setting up bucket notification
 function waitForMinIO() {
-    console.log("[DEBUG] Checking if MinIO is ready...");
+    console.log("Checking if MinIO is ready...");
     minioClient.listBuckets()
-        .then((buckets) => {
-            console.log(`[DEBUG] MinIO is ready. Found ${buckets.length} buckets:`);
-            buckets.forEach(bucket => console.log(`[DEBUG] - ${bucket.name}`));
+        .then(() => {
+            console.log("MinIO is ready");
             setupBucketNotification();
         })
         .catch(error => {
-            console.error(`[DEBUG] MinIO not ready yet: ${error.message}`);
-            console.error(`[DEBUG] MinIO connection details: endPoint=${minioClient.host}, port=${minioClient.port}`);
+            console.error(`MinIO not ready yet: ${error.message}`);
             setTimeout(waitForMinIO, 5000);
         });
 }
