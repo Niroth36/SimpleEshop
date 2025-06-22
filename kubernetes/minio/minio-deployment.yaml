@@ -35,6 +35,23 @@ spec:
           value: "minioadmin"
         - name: MINIO_ROOT_PASSWORD
           value: "minioadmin"
+        - name: MINIO_NOTIFY_WEBHOOK_ENABLE_welcome
+          value: "on"
+        - name: MINIO_NOTIFY_WEBHOOK_ENDPOINT_welcome
+          value: "http://welcome-email:8080"
+        - name: MINIO_NOTIFY_WEBHOOK_ENABLE_order
+          value: "on"
+        - name: MINIO_NOTIFY_WEBHOOK_ENDPOINT_order
+          value: "http://order-confirmation-email:8081"
+        - name: MINIO_NOTIFY_WEBHOOK_QUEUE_LIMIT
+          value: "100"
+        - name: MINIO_NOTIFY_WEBHOOK_QUEUE_DIR
+          value: "/data/.notify-webhook"
+        # Configure bucket event subscriptions
+        - name: MINIO_NOTIFY_WEBHOOK_BUCKET_welcome
+          value: "user-registrations"
+        - name: MINIO_NOTIFY_WEBHOOK_BUCKET_order
+          value: "order-confirmations"
         resources:
           limits:
             cpu: "0.5"
