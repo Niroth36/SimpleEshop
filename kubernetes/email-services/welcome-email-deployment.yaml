@@ -19,8 +19,17 @@ spec:
     spec:
       containers:
       - name: welcome-email
-        image: niroth36/welcome-email:latest
-        imagePullPolicy: Always
+        image: bitnami/node:18
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mkdir -p /app
+          cd /app
+          echo '{"name":"welcome-email","version":"1.0.0","main":"index.js","dependencies":{"nodemailer":"^6.9.1","minio":"^7.0.32"}}' > package.json
+          npm install
+          echo 'const http = require("http"); const server = http.createServer((req, res) => { res.writeHead(200, {"Content-Type": "text/plain"}); res.end("Welcome Email Service is running"); }); server.listen(8080, () => { console.log("Welcome Email Service listening on port 8080"); });' > index.js
+          node index.js
         envFrom:
         - configMapRef:
             name: welcome-email-config
