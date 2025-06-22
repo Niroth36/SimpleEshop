@@ -147,6 +147,19 @@ resource "azurerm_network_security_group" "control_plane_nsg" {
     destination_address_prefix = "*"
   }
 
+  # MinIO Console NodePort
+  security_rule {
+    name                       = "MinIO-Console"
+    priority                   = 1006
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "30901"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
   # NodePort range for Kubernetes services
   security_rule {
     name                       = "K8s-NodePort"
@@ -205,7 +218,7 @@ resource "azurerm_network_security_group" "worker_nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "9000-9001"
+    destination_port_range     = "9000-9002"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -218,7 +231,20 @@ resource "azurerm_network_security_group" "worker_nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "3001"
+    destination_port_range     = "3000-3001"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # Mailpit
+  security_rule {
+    name                       = "Mailpit"
+    priority                   = 1005
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "30025"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
