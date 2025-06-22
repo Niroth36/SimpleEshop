@@ -8,7 +8,6 @@ module.exports = async (event, context) => {
     try {
         // Parse the event body if it's a string
         body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-        console.log("Parsed body:", JSON.stringify(body));
     } catch (error) {
         console.error("Error parsing event body:", error);
         return {
@@ -20,7 +19,6 @@ module.exports = async (event, context) => {
     // Extract order data from the event
     // Check if the data is already wrapped in an orderData property
     const orderData = body.orderData ? body.orderData : body;
-    console.log("Extracted orderData:", JSON.stringify(orderData));
     const { orderId, userId, username, email, items } = orderData;
 
     // Ensure total is a number and handle undefined, null, or NaN values
@@ -40,8 +38,6 @@ module.exports = async (event, context) => {
         total = 0;
     }
 
-    console.log("Items array:", JSON.stringify(items));
-    console.log("Items array length:", items ? items.length : 0);
 
     if (!email) {
         console.error("No email address provided");
@@ -94,7 +90,6 @@ module.exports = async (event, context) => {
         }
         if (isNaN(quantity)) quantity = 1;
 
-        console.log(`Processing item: ${item.name}, price=${price}, quantity=${quantity}`);
 
         return {
             name: item.name || 'Unknown Item',
