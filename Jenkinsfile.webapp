@@ -59,10 +59,10 @@ pipeline {
                         # Set up Docker buildx
                         docker buildx create --name mybuilder --use || true
                         docker buildx inspect --bootstrap
-
+                        
                         # Login to Docker Hub
                         echo ${DOCKER_HUB_CREDS_PSW} | docker login -u ${DOCKER_HUB_CREDS_USR} --password-stdin
-
+                        
                         # Build and push multi-arch image
                         docker buildx build \\
                             --platform linux/amd64,linux/arm64 \\
@@ -71,7 +71,7 @@ pipeline {
                             --file Dockerfile.x86 \\
                             --push \\
                             .
-
+                        
                         echo "✅ Multi-arch image built and pushed: ${FULL_IMAGE_TAG}"
                     """
                 }
@@ -85,37 +85,37 @@ pipeline {
                         sh """
                             # Clean workspace
                             rm -rf gitops-repo
-
+                            
                             # Configure git
                             git config --global user.email "jenkins@simpleeshop.local"
                             git config --global user.name "Jenkins CI/CD"
-
+                            
                             # Clone GitOps repository
                             git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/simpleeshop-gitops.git gitops-repo
                             cd gitops-repo
-
+                            
                             # Update image tag in deployment manifest
                             if [ -f applications/simpleeshop/simpleeshop-deployment.yaml ]; then
                                 sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' applications/simpleeshop/simpleeshop-deployment.yaml
-
+                                
                                 # Verify the change
                                 echo "📝 Updated deployment manifest:"
                                 grep "image:" applications/simpleeshop/simpleeshop-deployment.yaml
-
+                                
                                 # Commit and push changes
                                 git add applications/simpleeshop/simpleeshop-deployment.yaml
-
+                                
                                 if git diff --staged --quiet; then
                                     echo "ℹ️ No changes to commit"
                                 else
                                     git commit -m "🚀 Deploy ${env.APP_NAME} ${BUILD_NUMBER_TAG}
-
+                                
                                 - Jenkins Build: #${BUILD_NUMBER}
                                 - Git Commit: ${IMAGE_TAG}
                                 - Docker Image: ${FULL_IMAGE_TAG}
                                 - Multi-arch: linux/amd64,linux/arm64
                                 - Timestamp: \$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-
+                                    
                                     git push origin main
                                     echo "✅ GitOps repository updated successfully!"
                                 fi
@@ -139,27 +139,27 @@ pipeline {
                 docker system prune -f || true
             """
         }
-
+        
         success {
             echo """
             🎉 SUCCESS: SimpleEshop CI/CD Pipeline Completed!
-
+            
             📦 Image Details:
                - Tag: ${BUILD_NUMBER_TAG}
                - Full Image: ${FULL_IMAGE_TAG}
                - Architectures: linux/amd64, linux/arm64
-
+               
             🚀 Deployment:
                - GitOps Repo Updated: ✅
                - ArgoCD Sync: Automatic
                - Application URL: http://4.210.149.226:30000
             """
         }
-
+        
         failure {
             echo """
             ❌ FAILED: SimpleEshop CI/CD Pipeline Failed!
-
+            
             🔍 Check the Jenkins console output for details
             📋 Build Details:
                - Build Number: ${BUILD_NUMBER}
