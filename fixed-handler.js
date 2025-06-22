@@ -55,7 +55,7 @@ module.exports = async (event, context) => {
     }
 
     // Configure SMTP transport
-    const smtpHost = process.env.SMTP_HOST || 'mailpit';
+    const smtpHost = process.env.SMTP_HOST || 'mailpit-service';
     const smtpPort = parseInt(process.env.SMTP_PORT || '1025');
     console.log(`Using SMTP server: ${smtpHost}:${smtpPort}`);
 
@@ -79,7 +79,7 @@ module.exports = async (event, context) => {
             price = parseFloat(item.price);
         }
         if (isNaN(price)) price = 0;
-        
+
         // Ensure quantity is a number
         let quantity = 1;
         if (typeof item.quantity === 'number') {
@@ -88,9 +88,9 @@ module.exports = async (event, context) => {
             quantity = parseInt(item.quantity);
         }
         if (isNaN(quantity)) quantity = 1;
-        
+
         console.log(`Processing item: ${item.name}, price=${price}, quantity=${quantity}`);
-        
+
         return {
             name: item.name || 'Unknown Item',
             price: price,
