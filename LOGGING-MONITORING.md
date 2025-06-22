@@ -177,7 +177,46 @@ security_rule {
 
 Add these rules to the `azurerm_network_security_group.worker_nsg` resource in `infrastructure/azure/main.tf`.
 
-### Deploying Prometheus
+### Deployment Methods
+
+There are two ways to deploy the logging and monitoring components:
+
+#### 1. Using the deploy-all.sh Script
+
+The `deploy-all.sh` script in the `kubernetes/scripts` directory will deploy all components, including Prometheus, Grafana, Loki, and Promtail:
+
+```bash
+cd kubernetes/scripts
+./deploy-all.sh
+```
+
+This script will:
+1. Deploy the Prometheus stack (ConfigMap, PVC, Deployment, Service)
+2. Deploy Grafana (ConfigMap, Deployment, PVC, Service)
+3. Deploy Loki (ConfigMap, PVC, Deployment, Service)
+4. Deploy Promtail (ConfigMap, DaemonSet)
+5. Configure ArgoCD to manage these components
+
+#### 2. Using ArgoCD
+
+If you already have ArgoCD set up, you can deploy the logging and monitoring components by applying the ArgoCD application definitions:
+
+```bash
+kubectl apply -f kubernetes/argocd/applications/monitoring-app.yaml
+kubectl apply -f kubernetes/argocd/applications/logging-app.yaml
+kubectl apply -f kubernetes/argocd/applications/promtail-app.yaml
+```
+
+These application definitions will tell ArgoCD to deploy:
+- Prometheus from the `kubernetes/prometheus` directory
+- Loki from the `kubernetes/loki` directory
+- Promtail from the `kubernetes/promtail` directory
+
+#### 3. Manual Deployment
+
+If you prefer to deploy the components manually, you can use the following commands:
+
+##### Deploying Prometheus
 
 ```bash
 kubectl apply -f kubernetes/prometheus/prometheus-configmap.yaml
@@ -186,7 +225,7 @@ kubectl apply -f kubernetes/prometheus/prometheus-deployment.yaml
 kubectl apply -f kubernetes/prometheus/prometheus-service.yaml
 ```
 
-### Deploying Loki (Log Aggregation)
+##### Deploying Loki (Log Aggregation)
 
 ```bash
 # Deploy Loki
@@ -200,7 +239,7 @@ kubectl apply -f kubernetes/promtail/promtail-configmap.yaml
 kubectl apply -f kubernetes/promtail/promtail-daemonset.yaml
 ```
 
-### Configuring Grafana
+##### Configuring Grafana
 
 ```bash
 kubectl apply -f kubernetes/grafana/grafana-datasource-configmap.yaml
