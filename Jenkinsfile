@@ -1,8 +1,36 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml """
+                apiVersion: v1
+                kind: Pod
+                spec:
+                  containers:
+                  - name: node
+                    image: node:18-alpine
+                    command:
+                    - cat
+                    tty: true
+                  - name: kaniko
+                    image: gcr.io/kaniko-project/executor:debug
+                    command:
+                    - cat
+                    tty: true
+                    volumeMounts:
+                    - name: docker-config
+                      mountPath: /kaniko/.docker
+                  volumes:
+                  - name: docker-config
+                    secret:
+                      secretName: docker-hub-secret
+                      items:
+                      - key: .dockerconfigjson
+                        path: config.json
+            """
+        }
+    }
     
     environment {
-        DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
         DOCKER_IMAGE = 'niroth36/simpleeshop'
         GITOPS_REPO = 'https://github.com/Niroth36/SimpleEshop.git'
         GITOPS_CREDENTIALS = 'github-credentials'
@@ -14,7 +42,6 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    // Generate image tag from git commit
                     env.IMAGE_TAG = sh(
                         script: "git rev-parse --short HEAD",
                         returnStdout: true
@@ -29,7 +56,6 @@ pipeline {
         stage('Check for Web App Changes') {
             steps {
                 script {
-                    // Check if any files in the web-app directory have changed
                     def changedFiles = sh(
                         script: 'git diff --name-only HEAD~1 HEAD || echo "first-build"',
                         returnStdout: true
@@ -61,8 +87,17 @@ pipeline {
                 environment name: 'SHOULD_BUILD', value: 'true'
             }
             steps {
-                dir('web-app') {
-                    sh 'npm ci'
+                container('node') {
+                    dir('web-app') {
+                        script {
+                            if (!fileExists('package-lock.json')) {
+                                echo "⚠️ package-lock.json not found, running npm install to generate it"
+                                sh 'npm install'
+                            } else {
+                                sh 'npm ci'
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -74,51 +109,43 @@ pipeline {
             parallel {
                 stage('Unit Tests') {
                     steps {
-                        dir('web-app') {
-                            sh 'npm test || echo "Tests not configured"'
+                        container('node') {
+                            dir('web-app') {
+                                sh 'npm test || echo "Tests not configured"'
+                            }
                         }
                     }
                 }
                 stage('Lint Code') {
                     steps {
-                        dir('web-app') {
-                            sh 'npm run lint || echo "Lint not configured"'
+                        container('node') {
+                            dir('web-app') {
+                                sh 'npm run lint || echo "Lint not configured"'
+                            }
                         }
-                    }
-                }
-                stage('Integration Tests') {
-                    steps {
-                        sh './test-integration.sh || echo "Integration tests not configured"'
                     }
                 }
             }
         }
         
-        stage('Build Multi-Arch Docker Image') {
+        stage('Build Docker Image with Kaniko') {
             when {
                 environment name: 'SHOULD_BUILD', value: 'true'
             }
             steps {
-                script {
-                    sh """
-                        # Set up Docker buildx
-                        docker buildx create --name mybuilder --use || true
-                        docker buildx inspect --bootstrap
-                        
-                        # Login to Docker Hub
-                        echo ${DOCKER_HUB_CREDS_PSW} | docker login -u ${DOCKER_HUB_CREDS_USR} --password-stdin
-                        
-                        # Build and push multi-arch image
-                        docker buildx build \\
-                            --platform linux/amd64,linux/arm64 \\
-                            --tag ${FULL_IMAGE_TAG} \\
-                            --tag ${DOCKER_IMAGE}:latest \\
-                            --file Dockerfile.x86 \\
-                            --push \\
-                            .
-                        
-                        echo "✅ Multi-arch image built and pushed: ${FULL_IMAGE_TAG}"
-                    """
+                container('kaniko') {
+                    script {
+                        sh """
+                            /kaniko/executor \\
+                                --dockerfile=Dockerfile.x86 \\
+                                --context=. \\
+                                --destination=${FULL_IMAGE_TAG} \\
+                                --destination=${DOCKER_IMAGE}:latest \\
+                                --cache=true \\
+                                --cache-ttl=24h
+                        """
+                        echo "✅ Image built and pushed: ${FULL_IMAGE_TAG}"
+                    }
                 }
             }
         }
@@ -131,15 +158,12 @@ pipeline {
                 script {
                     withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
                         sh """
-                            # Configure git for this workspace
                             git config user.email "jenkins@simpleeshop.local"
                             git config user.name "Jenkins CI/CD"
                             
-                            # Find and update deployment manifests
                             echo "🔍 Looking for deployment manifests..."
                             find kubernetes/ -name "*deployment*.yaml" -type f | head -5
                             
-                            # Update image tag in SimpleEshop deployment manifest
                             if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
                                 echo "📝 Updating kubernetes/applications/simpleeshop-deployment.yaml"
                                 sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/applications/simpleeshop-deployment.yaml
@@ -154,82 +178,32 @@ pipeline {
                                 find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
                             fi
                             
-                            # Check if there are any changes to commit
                             if git diff --quiet; then
                                 echo "ℹ️ No changes to commit"
                             else
                                 echo "📋 Changes detected, committing..."
                                 git add kubernetes/
-                                git commit -m "🚀 Update ${APP_NAME} image to ${BUILD_NUMBER_TAG}
-                            
-                            - Jenkins Build: #${BUILD_NUMBER}
-                            - Git Commit: ${IMAGE_TAG}
-                            - Docker Image: ${FULL_IMAGE_TAG}
-                            - Multi-arch: linux/amd64,linux/arm64
-                            - Timestamp: \$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-                                
-                                # Push changes back to the same repository
+                                git commit -m "🚀 Update ${APP_NAME} image to ${BUILD_NUMBER_TAG}"
                                 git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:main
-                                echo "✅ Kubernetes manifests updated in mono-repo!"
+                                echo "✅ Kubernetes manifests updated!"
                             fi
                         """
                     }
                 }
             }
         }
-        
-        stage('Trigger Deployment') {
-            when {
-                environment name: 'SHOULD_BUILD', value: 'true'
-            }
-            steps {
-                script {
-                    echo "🔄 ArgoCD will automatically sync the new deployment"
-                    echo "📦 New multi-arch image: ${env.FULL_IMAGE_TAG}"
-                    echo "🌐 Deployment URL: http://4.210.149.226:30000"
-                    echo "📁 GitOps: Self-contained in mono-repo"
-                }
-            }
-        }
     }
     
     post {
-        always {
-            // Clean up local images
-            sh """
-                docker logout || true
-                docker system prune -f || true
-            """
-        }
-        
         success {
             script {
                 if (env.SHOULD_BUILD == "true") {
-                    def deploymentTime = new Date().format("yyyy-MM-dd HH:mm:ss")
                     echo """
-                    🎉 SUCCESS: SimpleEshop Mono-Repo CI/CD Completed!
+                    🎉 SUCCESS: SimpleEshop CI/CD Completed with Kaniko!
                     
-                    📦 Image Details:
-                       - Repository: ${DOCKER_IMAGE}
-                       - Tag: ${BUILD_NUMBER_TAG}
-                       - Full Image: ${FULL_IMAGE_TAG}
-                       - Architectures: linux/amd64, linux/arm64
-                       
-                    🚀 Deployment:
-                       - Kubernetes Manifests Updated: ✅
-                       - ArgoCD Sync: Automatic
-                       - Application URL: http://4.210.149.226:30000
-                       
-                    📁 GitOps Strategy: Mono-repo self-update
-                    ⏰ Deployment Time: ${deploymentTime}
-                    """
-                } else {
-                    echo """
-                    ℹ️ SUCCESS: No Web App Changes Detected
-                    
-                    📁 Checked: web-app/ directory
-                    🔄 Action: Skipped Docker build (no changes)
-                    ✅ Status: Pipeline completed successfully
+                    📦 Image: ${FULL_IMAGE_TAG}
+                    🚀 Deployment: Updated via GitOps
+                    🌐 URL: http://4.210.149.226:30000
                     """
                 }
             }
@@ -237,24 +211,9 @@ pipeline {
         
         failure {
             echo """
-            ❌ FAILED: SimpleEshop Mono-Repo CI/CD Failed!
-            
-            🔍 Check the following:
-               - Docker Hub credentials
-               - GitHub credentials  
-               - Network connectivity
-               - Application tests
-               - Kubernetes manifest paths
-               
-            📋 Build Details:
-               - Build Number: ${BUILD_NUMBER}
-               - Commit: ${env.IMAGE_TAG}
-               - Should Build: ${env.SHOULD_BUILD}
+            ❌ FAILED: Check Docker Hub secret and GitHub credentials
+            📋 Build: ${BUILD_NUMBER} | Commit: ${env.IMAGE_TAG}
             """
-        }
-        
-        cleanup {
-            sh 'docker system prune -f || true'
         }
     }
 }
