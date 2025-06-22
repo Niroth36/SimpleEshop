@@ -19,7 +19,7 @@ const SECRET_KEY = process.env.SECRET_KEY || 'mYA3eyYD0R-dI420-81COf7';
 async function sendWelcomeEmail(username, email) {
     try {
         // Configure SMTP transport
-        const smtpHost = process.env.SMTP_HOST || 'mailpit';
+        const smtpHost = process.env.SMTP_HOST || 'mailpit-service';
         const smtpPort = parseInt(process.env.SMTP_PORT || '1025');
         console.log(`Using SMTP server: ${smtpHost}:${smtpPort}`);
 
