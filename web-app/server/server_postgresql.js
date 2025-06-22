@@ -9,6 +9,29 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const Minio = require('minio'); // MinIO client
 const nodemailer = require('nodemailer'); // For sending emails
+const promClient = require('prom-client'); // Prometheus client for metrics
+
+// Initialize Prometheus metrics
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+const Registry = promClient.Registry;
+const register = new Registry();
+collectDefaultMetrics({ register });
+
+// Create custom metrics
+const httpRequestsTotal = new promClient.Counter({
+    name: 'http_requests_total',
+    help: 'Total number of HTTP requests',
+    labelNames: ['method', 'route', 'status'],
+    registers: [register]
+});
+
+const httpRequestDurationMicroseconds = new promClient.Histogram({
+    name: 'http_request_duration_ms',
+    help: 'Duration of HTTP requests in ms',
+    labelNames: ['method', 'route', 'status'],
+    buckets: [1, 5, 15, 50, 100, 200, 300, 400, 500, 1000, 2000, 5000, 10000],
+    registers: [register]
+});
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -179,6 +202,38 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, '../public')));
 
 app.use(bodyParser.json());
+
+// Middleware to track HTTP request metrics
+app.use((req, res, next) => {
+    const start = Date.now();
+
+    // Add a listener for the response finish event
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const route = req.originalUrl || req.url;
+        const method = req.method;
+        const status = res.statusCode;
+
+        // Increment the request counter
+        httpRequestsTotal.inc({ method, route, status });
+
+        // Record the request duration
+        httpRequestDurationMicroseconds.observe({ method, route, status }, duration);
+    });
+
+    next();
+});
+
+// Metrics endpoint for Prometheus to scrape
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', register.contentType);
+        res.end(await register.metrics());
+    } catch (err) {
+        console.error('Error generating metrics:', err);
+        res.status(500).send('Error generating metrics');
+    }
+});
 
 // Redis client setup for sessions (conditional)
 let sessionStore;

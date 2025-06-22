@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: simpleeshop
+  labels:
+    app: prometheus
+    tier: monitoring
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: http
+    protocol: TCP
+    nodePort: 30090
+  type: NodePort

@@ -81,6 +81,16 @@ print_status "Waiting for Mailpit to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/mailpit -n simpleeshop
 print_status "Mailpit is ready"
 
+# Deploy Prometheus for monitoring
+print_header "Deploying Prometheus"
+kubectl apply -k prometheus/
+print_status "Prometheus manifests applied"
+
+# Deploy Prometheus Adapter for custom metrics
+print_header "Deploying Prometheus Adapter"
+kubectl apply -k prometheus-adapter/
+print_status "Prometheus Adapter manifests applied"
+
 # Deploy Grafana for monitoring
 print_header "Deploying Grafana"
 kubectl apply -f grafana/
@@ -90,6 +100,15 @@ print_status "Grafana manifests applied"
 print_header "Deploying Applications"
 kubectl apply -f applications/
 print_status "Application manifests applied"
+
+# Wait for applications to be ready before deploying HPA
+print_status "Waiting for SimpleEshop..."
+kubectl wait --for=condition=available --timeout=300s deployment/simpleeshop -n simpleeshop
+
+# Deploy HPA after Prometheus Adapter is ready
+print_header "Deploying Horizontal Pod Autoscaler"
+kubectl apply -f applications/simpleeshop-hpa.yaml
+print_status "HPA manifests applied"
 
 # Deploy Jenkins
 print_header "Deploying Jenkins"
@@ -150,6 +169,7 @@ if kubectl get namespace argocd &> /dev/null; then
 fi
 
 echo "   Grafana:      http://$CONTROL_PLANE_IP:30030"
+echo "   Prometheus:   http://$CONTROL_PLANE_IP:30090"
 echo "   Mailpit:      http://$CONTROL_PLANE_IP:30025"
 echo "   MinIO Console: http://$CONTROL_PLANE_IP:30901"
 
