@@ -18,4 +18,5 @@ spec:
     targetPort: 8025
     name: webui
     protocol: TCP
-  type: ClusterIP
+    nodePort: 30025
+  type: NodePort
