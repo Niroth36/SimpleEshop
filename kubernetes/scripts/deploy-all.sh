@@ -123,6 +123,8 @@ print_header "Deploying ArgoCD Applications"
 kubectl apply -f argocd/applications/database-app.yaml
 kubectl apply -f argocd/applications/jenkins-app.yaml  
 kubectl apply -f argocd/applications/simpleeshop-app.yaml
+kubectl apply -f argocd/applications/minio-app.yaml
+kubectl apply -f argocd/applications/email-services-app.yaml
 print_status "ArgoCD applications configured"
 
 # Display access information

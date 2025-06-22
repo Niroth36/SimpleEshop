@@ -1,18 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: database
+  name: minio
   namespace: argocd
   labels:
-    app: database
+    app: minio
   annotations:
-    description: "Deploys the PostgreSQL database for SimpleEshop"
+    description: "Deploys MinIO object storage service"
 spec:
   project: default
   source:
     repoURL: https://github.com/Niroth36/SimpleEshop.git
     targetRevision: master
-    path: applications/database
+    path: kubernetes/minio
   destination:
     server: https://kubernetes.default.svc
     namespace: simpleeshop
