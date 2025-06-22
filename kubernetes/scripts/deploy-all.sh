@@ -71,6 +71,16 @@ print_status "Waiting for MinIO to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/minio -n simpleeshop
 print_status "MinIO is ready"
 
+# Deploy Email Services
+print_header "Deploying Email Services"
+kubectl apply -k email-services/
+print_status "Email services manifests applied"
+
+# Wait for Mailpit to be ready
+print_status "Waiting for Mailpit to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment/mailpit -n simpleeshop
+print_status "Mailpit is ready"
+
 # Deploy Grafana for monitoring
 print_header "Deploying Grafana"
 kubectl apply -f grafana/
