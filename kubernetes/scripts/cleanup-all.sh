@@ -69,6 +69,16 @@ print_header "Removing Jenkins"
 kubectl delete -f jenkins/ --ignore-not-found=true
 print_status "Jenkins removed"
 
+# Remove MinIO (this will delete data!)
+print_header "Removing MinIO"
+kubectl delete -f minio/ --ignore-not-found=true
+print_status "MinIO removed"
+
+# Remove Grafana
+print_header "Removing Grafana"
+kubectl delete -f grafana/ --ignore-not-found=true
+print_status "Grafana removed"
+
 # Remove database (this will delete data!)
 print_header "Removing Database"
 kubectl delete -f database/ --ignore-not-found=true
@@ -110,4 +120,4 @@ kubectl get namespaces | grep -E "(simpleeshop|jenkins|argocd)" && print_warning
 
 echo ""
 print_status "Cleanup completed! 🎉"
-print_warning "All applications (SimpleEshop, Jenkins, ArgoCD) have been removed"
+print_warning "All applications (SimpleEshop, Jenkins, ArgoCD, MinIO, Grafana, Mailpit) have been removed"
