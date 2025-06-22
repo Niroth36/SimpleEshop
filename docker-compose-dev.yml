@@ -153,7 +153,7 @@ services:
       - "8081:8081"  # Expose the health check endpoint
     environment:
       MINIO_HOST: minio
-      MINIO_PORT: 9002
+      MINIO_PORT: 9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       SMTP_HOST: mailpit

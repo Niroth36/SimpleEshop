@@ -5,6 +5,8 @@ metadata:
   namespace: argocd
   labels:
     app: jenkins
+  annotations:
+    description: "Deploys Jenkins CI/CD server"
 spec:
   project: default
   source:

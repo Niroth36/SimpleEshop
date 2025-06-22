@@ -1,18 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: database
+  name: email-services
   namespace: argocd
   labels:
-    app: database
+    app: email-services
   annotations:
-    description: "Deploys the PostgreSQL database for SimpleEshop"
+    description: "Deploys Mailpit and the two email services (welcome-email and order-confirmation-email)"
 spec:
   project: default
   source:
     repoURL: https://github.com/Niroth36/SimpleEshop.git
     targetRevision: master
-    path: applications/database
+    path: kubernetes/email-services
   destination:
     server: https://kubernetes.default.svc
     namespace: simpleeshop
