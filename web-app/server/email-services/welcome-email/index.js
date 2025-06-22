@@ -5,7 +5,7 @@ const handler = require("./handler");
 
 // Configure MinIO client
 const minioClient = new Minio.Client({
-    endPoint: process.env.MINIO_HOST || "minio",
+    endPoint: process.env.MINIO_HOST || "minio-service",
     port: parseInt(process.env.MINIO_PORT || "9000"),
     useSSL: false,
     accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",

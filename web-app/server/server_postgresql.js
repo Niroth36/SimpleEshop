@@ -70,7 +70,7 @@ async function sendWelcomeEmail(username, email) {
 
 // MinIO client setup
 const minioClient = new Minio.Client({
-    endPoint: process.env.MINIO_HOST || 'minio',
+    endPoint: process.env.MINIO_HOST || 'minio-service',
     port: parseInt(process.env.MINIO_PORT || '9000'),
     useSSL: false,
     accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
@@ -78,7 +78,7 @@ const minioClient = new Minio.Client({
 });
 
 // Log MinIO connection details for debugging
-console.log(`MinIO client configured with: endPoint=${process.env.MINIO_HOST || 'minio'}, port=${parseInt(process.env.MINIO_PORT || '9000')}`);
+console.log(`MinIO client configured with: endPoint=${process.env.MINIO_HOST || 'minio-service'}, port=${parseInt(process.env.MINIO_PORT || '9000')}`);
 
 // Ensure the user-registrations bucket exists
 async function ensureMinioUserBucket() {
