@@ -9,6 +9,10 @@ const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 
+// Import custom logger and metrics
+const logger = require('./utils/logger');
+const metrics = require('./utils/metrics');
+
 const app = express();
 const port = 3000;
 
@@ -27,6 +31,20 @@ app.use(session({
     saveUninitialized: true,
 }));
 
+// Add metrics middleware to measure request durations
+app.use(metrics.requestDurationMiddleware);
+
+// Expose metrics endpoint for Prometheus
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', metrics.register.contentType);
+        res.end(await metrics.register.metrics());
+    } catch (err) {
+        logger.error(`Error generating metrics: ${err.message}`);
+        res.status(500).end();
+    }
+});
+
 // // Database connection
 // const connection = mysql.createConnection({
 //     host: 'localhost',
@@ -44,8 +62,11 @@ const pool = new Pool({
 });
 
 connection.connect((err) => {
-    if (err) throw err;
-    console.log('Connected to MySQL!');
+    if (err) {
+        logger.error(`Failed to connect to database: ${err.message}`);
+        throw err;
+    }
+    logger.info('Connected to MySQL database successfully');
 });
 
 // User registration
@@ -559,5 +580,6 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${port}`);
+    logger.info(`Server running on http://0.0.0.0:${port}`);
+    logger.info(`Metrics available at http://0.0.0.0:${port}/metrics`);
 });

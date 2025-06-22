@@ -249,6 +249,32 @@ resource "azurerm_network_security_group" "worker_nsg" {
     destination_address_prefix = "*"
   }
 
+  # Prometheus
+  security_rule {
+    name                       = "Prometheus"
+    priority                   = 1009
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "9090"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # Loki
+  security_rule {
+    name                       = "Loki"
+    priority                   = 1010
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3100"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
   # NodePort range for Kubernetes services
   security_rule {
     name                       = "K8s-NodePort"

@@ -3,6 +3,26 @@
  * This helps prevent cascading failures when the email service is experiencing issues
  */
 
+// Import logger if available, otherwise use console
+let logger;
+let metrics;
+try {
+    logger = require('../utils/logger');
+    metrics = require('../utils/metrics');
+} catch (err) {
+    // Fallback to console if logger module is not available
+    logger = {
+        info: console.log,
+        error: console.error,
+        warn: console.warn,
+        debug: console.log
+    };
+    // Create a dummy metrics object if metrics module is not available
+    metrics = {
+        updateCircuitBreakerMetrics: () => {}
+    };
+}
+
 class CircuitBreaker {
     constructor(fn, options = {}) {
         this.fn = fn;
@@ -12,7 +32,7 @@ class CircuitBreaker {
         this.failureCount = 0;
         this.nextAttempt = Date.now();
         this.name = options.name || 'Circuit';
-        
+
         // For logging/monitoring
         this.successCount = 0;
         this.lastFailure = null;
@@ -23,11 +43,12 @@ class CircuitBreaker {
         // Check if circuit is OPEN
         if (this.state === 'OPEN') {
             if (this.nextAttempt <= Date.now()) {
-                console.log(`${this.name}: Circuit is HALF-OPEN, allowing test request`);
+                logger.info(`${this.name}: Circuit is HALF-OPEN, allowing test request`);
                 this.state = 'HALF-OPEN';
+                metrics.updateCircuitBreakerMetrics(this.name, this.state);
             } else {
                 const remainingTime = Math.round((this.nextAttempt - Date.now()) / 1000);
-                console.log(`${this.name}: Circuit is OPEN, fast failing. Retry in ${remainingTime}s`);
+                logger.warn(`${this.name}: Circuit is OPEN, fast failing. Retry in ${remainingTime}s`);
                 throw new Error(`Circuit is OPEN. Retry in ${remainingTime}s`);
             }
         }
@@ -47,20 +68,23 @@ class CircuitBreaker {
         this.state = 'CLOSED';
         this.successCount++;
         this.lastSuccess = new Date();
-        console.log(`${this.name}: Operation succeeded, circuit CLOSED`);
+        logger.info(`${this.name}: Operation succeeded, circuit CLOSED`);
+        metrics.updateCircuitBreakerMetrics(this.name, this.state, true);
     }
 
     failure(error) {
         this.failureCount++;
         this.lastFailure = new Date();
-        
-        console.log(`${this.name}: Operation failed (${this.failureCount}/${this.failureThreshold}): ${error.message}`);
-        
+
+        logger.warn(`${this.name}: Operation failed (${this.failureCount}/${this.failureThreshold}): ${error.message}`);
+        metrics.updateCircuitBreakerMetrics(this.name, this.state, false);
+
         if (this.failureCount >= this.failureThreshold) {
             this.state = 'OPEN';
             this.nextAttempt = Date.now() + this.resetTimeout;
             const resetTime = new Date(this.nextAttempt).toISOString().substr(11, 8);
-            console.log(`${this.name}: Circuit OPENED until ${resetTime}`);
+            logger.error(`${this.name}: Circuit OPENED until ${resetTime}`);
+            metrics.updateCircuitBreakerMetrics(this.name, this.state);
         }
     }
 
