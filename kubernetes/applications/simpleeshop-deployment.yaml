@@ -7,7 +7,7 @@ metadata:
     app: simpleeshop
     tier: frontend
 spec:
-  replicas: 2  # Single replica to fix session persistence
+  replicas: 3  # Increased to 3 replicas
   selector:
     matchLabels:
       app: simpleeshop
@@ -39,11 +39,13 @@ spec:
             cpu: "500m"
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - simpleeshop
-            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - simpleeshop
+              topologyKey: kubernetes.io/hostname

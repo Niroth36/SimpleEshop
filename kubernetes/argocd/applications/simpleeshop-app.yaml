@@ -8,9 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Niroth36/SimpleEshop-gitops.git
+    repoURL: https://github.com/Niroth36/simpleeshop-gitops.git
     targetRevision: main
-    path: kubernetes/simpleeshop
+    path: applications/simpleeshop
   destination:
     server: https://kubernetes.default.svc
     namespace: simpleeshop
