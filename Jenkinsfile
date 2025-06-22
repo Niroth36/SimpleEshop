@@ -6,6 +6,9 @@ pipeline {
                 kind: Pod
                 spec:
                   containers:
+                  - name: jnlp
+                    image: jenkins/inbound-agent:latest
+                    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
                   - name: node
                     image: node:18-alpine
                     command:
@@ -19,6 +22,11 @@ pipeline {
                     volumeMounts:
                     - name: docker-config
                       mountPath: /kaniko/.docker
+                  - name: git
+                    image: alpine/git:latest
+                    command:
+                    - cat
+                    tty: true
                   volumes:
                   - name: docker-config
                     secret:
@@ -40,43 +48,47 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
-                script {
-                    env.IMAGE_TAG = sh(
-                        script: "git rev-parse --short HEAD",
-                        returnStdout: true
-                    ).trim()
-                    env.BUILD_NUMBER_TAG = "${env.BUILD_NUMBER}-${env.IMAGE_TAG}"
-                    env.FULL_IMAGE_TAG = "${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
+                container('git') {
+                    checkout scm
+                    script {
+                        env.IMAGE_TAG = sh(
+                            script: "git rev-parse --short HEAD",
+                            returnStdout: true
+                        ).trim()
+                        env.BUILD_NUMBER_TAG = "${env.BUILD_NUMBER}-${env.IMAGE_TAG}"
+                        env.FULL_IMAGE_TAG = "${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
+                    }
+                    echo "🏗️ Building: ${env.FULL_IMAGE_TAG}"
                 }
-                echo "🏗️ Building: ${env.FULL_IMAGE_TAG}"
             }
         }
         
         stage('Check for Web App Changes') {
             steps {
-                script {
-                    def changedFiles = sh(
-                        script: 'git diff --name-only HEAD~1 HEAD || echo "first-build"',
-                        returnStdout: true
-                    ).trim()
-                    
-                    echo "📝 Changed files: ${changedFiles}"
-                    
-                    def webAppChanged = sh(
-                        script: 'git diff --name-only HEAD~1 HEAD | grep -q "^web-app/" && echo "true" || echo "false"',
-                        returnStdout: true
-                    ).trim()
-                    
-                    if (changedFiles == "first-build") {
-                        echo "🎯 First build or no previous commit - proceeding with build"
-                        env.SHOULD_BUILD = "true"
-                    } else if (webAppChanged == "true") {
-                        echo "✅ Changes detected in web-app directory - proceeding with build"
-                        env.SHOULD_BUILD = "true"
-                    } else {
-                        echo "ℹ️ No changes in web-app directory - skipping Docker build"
-                        env.SHOULD_BUILD = "false"
+                container('git') {
+                    script {
+                        def changedFiles = sh(
+                            script: 'git diff --name-only HEAD~1 HEAD || echo "first-build"',
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "📝 Changed files: ${changedFiles}"
+                        
+                        def webAppChanged = sh(
+                            script: 'git diff --name-only HEAD~1 HEAD | grep -q "^web-app/" && echo "true" || echo "false"',
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (changedFiles == "first-build") {
+                            echo "🎯 First build or no previous commit - proceeding with build"
+                            env.SHOULD_BUILD = "true"
+                        } else if (webAppChanged == "true") {
+                            echo "✅ Changes detected in web-app directory - proceeding with build"
+                            env.SHOULD_BUILD = "true"
+                        } else {
+                            echo "ℹ️ No changes in web-app directory - skipping Docker build"
+                            env.SHOULD_BUILD = "false"
+                        }
                     }
                 }
             }
@@ -155,39 +167,41 @@ pipeline {
                 environment name: 'SHOULD_BUILD', value: 'true'
             }
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
-                        sh """
-                            git config user.email "jenkins@simpleeshop.local"
-                            git config user.name "Jenkins CI/CD"
-                            
-                            echo "🔍 Looking for deployment manifests..."
-                            find kubernetes/ -name "*deployment*.yaml" -type f | head -5
-                            
-                            if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
-                                echo "📝 Updating kubernetes/applications/simpleeshop-deployment.yaml"
-                                sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/applications/simpleeshop-deployment.yaml
-                                grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
-                            elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
-                                echo "📝 Updating kubernetes/simpleeshop-deployment.yaml"
-                                sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/simpleeshop-deployment.yaml
-                                grep "image:" kubernetes/simpleeshop-deployment.yaml
-                            else
-                                echo "⚠️ Searching for any deployment file with simpleeshop..."
-                                find . -name "*simpleeshop*deployment*.yaml" -type f
-                                find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
-                            fi
-                            
-                            if git diff --quiet; then
-                                echo "ℹ️ No changes to commit"
-                            else
-                                echo "📋 Changes detected, committing..."
-                                git add kubernetes/
-                                git commit -m "🚀 Update ${APP_NAME} image to ${BUILD_NUMBER_TAG}"
-                                git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:main
-                                echo "✅ Kubernetes manifests updated!"
-                            fi
-                        """
+                container('git') {
+                    script {
+                        withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                            sh """
+                                git config user.email "jenkins@simpleeshop.local"
+                                git config user.name "Jenkins CI/CD"
+                                
+                                echo "🔍 Looking for deployment manifests..."
+                                find kubernetes/ -name "*deployment*.yaml" -type f | head -5
+                                
+                                if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
+                                    echo "📝 Updating kubernetes/applications/simpleeshop-deployment.yaml"
+                                    sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/applications/simpleeshop-deployment.yaml
+                                    grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
+                                elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
+                                    echo "📝 Updating kubernetes/simpleeshop-deployment.yaml"
+                                    sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/simpleeshop-deployment.yaml
+                                    grep "image:" kubernetes/simpleeshop-deployment.yaml
+                                else
+                                    echo "⚠️ Searching for any deployment file with simpleeshop..."
+                                    find . -name "*simpleeshop*deployment*.yaml" -type f
+                                    find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
+                                fi
+                                
+                                if git diff --quiet; then
+                                    echo "ℹ️ No changes to commit"
+                                else
+                                    echo "📋 Changes detected, committing..."
+                                    git add kubernetes/
+                                    git commit -m "🚀 Update ${APP_NAME} image to ${BUILD_NUMBER_TAG}"
+                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:main
+                                    echo "✅ Kubernetes manifests updated!"
+                                fi
+                            """
+                        }
                     }
                 }
             }
