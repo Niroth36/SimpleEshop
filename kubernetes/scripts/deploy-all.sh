@@ -61,6 +61,21 @@ print_status "Waiting for PostgreSQL to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/postgres -n simpleeshop
 print_status "PostgreSQL is ready"
 
+# Deploy MinIO (prerequisite for email services)
+print_header "Deploying MinIO"
+kubectl apply -f minio/
+print_status "MinIO manifests applied"
+
+# Wait for MinIO to be ready
+print_status "Waiting for MinIO to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment/minio -n simpleeshop
+print_status "MinIO is ready"
+
+# Deploy Grafana for monitoring
+print_header "Deploying Grafana"
+kubectl apply -f grafana/
+print_status "Grafana manifests applied"
+
 # Deploy applications
 print_header "Deploying Applications"
 kubectl apply -f applications/
@@ -122,6 +137,10 @@ if kubectl get namespace argocd &> /dev/null; then
     echo "   ArgoCD:       https://$CONTROL_PLANE_IP:30443"
 fi
 
+echo "   Grafana:      http://$CONTROL_PLANE_IP:30030"
+echo "   Mailpit:      http://$CONTROL_PLANE_IP:30025"
+echo "   MinIO Console: http://$CONTROL_PLANE_IP:30901"
+
 echo ""
 echo "🔐 Credentials:"
 echo "   ArgoCD:"
@@ -132,6 +151,16 @@ echo ""
 echo "   Jenkins:"
 echo "     Initial setup required. Get password with:"
 echo "     kubectl exec -it \$(kubectl get pods -n jenkins -l app=jenkins -o jsonpath='{.items[0].metadata.name}') -n jenkins -- cat /var/jenkins_home/secrets/initialAdminPassword"
+
+echo ""
+echo "   Grafana:"
+echo "     Username: admin"
+echo "     Password: admin"
+
+echo ""
+echo "   MinIO:"
+echo "     Username: minioadmin"
+echo "     Password: minioadmin"
 
 echo ""
 echo "📊 Quick Status Check:"

@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const CircuitBreaker = require('../circuit-breaker');
 
 module.exports = async (event, context) => {
     console.log("Function started with event:", event.body);
@@ -174,9 +175,19 @@ The SimpleEshop Team
         `
     };
 
+    // Create a circuit breaker for email sending
+    const emailCircuitBreaker = new CircuitBreaker(
+        async (mailOpts) => await transporter.sendMail(mailOpts),
+        {
+            failureThreshold: 3,
+            resetTimeout: 30000, // 30 seconds
+            name: 'OrderConfirmationEmailCircuit'
+        }
+    );
+
     try {
-        // Send the email
-        const info = await transporter.sendMail(mailOptions);
+        // Send the email using the circuit breaker
+        const info = await emailCircuitBreaker.fire(mailOptions);
         console.log('Email sent successfully:', info.messageId);
 
         return {
@@ -186,7 +197,8 @@ The SimpleEshop Team
                 message: 'Order confirmation email sent successfully',
                 recipient: email,
                 orderId: orderId,
-                messageId: info.messageId
+                messageId: info.messageId,
+                circuitStatus: emailCircuitBreaker.getStatus()
             })
         };
     } catch (error) {
@@ -195,7 +207,8 @@ The SimpleEshop Team
             statusCode: 500,
             body: JSON.stringify({
                 error: 'Failed to send order confirmation email',
-                details: error.message
+                details: error.message,
+                circuitStatus: emailCircuitBreaker.getStatus()
             })
         };
     }

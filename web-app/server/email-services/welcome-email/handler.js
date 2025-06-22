@@ -1,8 +1,9 @@
 const nodemailer = require('nodemailer');
+const CircuitBreaker = require('../circuit-breaker');
 
 module.exports = async (event, context) => {
     console.log("Function started with event:", event.body);
-    
+
     let body;
     try {
         // Parse the event body if it's a string
@@ -67,18 +68,29 @@ module.exports = async (event, context) => {
         `
     };
 
+    // Create a circuit breaker for email sending
+    const emailCircuitBreaker = new CircuitBreaker(
+        async (mailOpts) => await transporter.sendMail(mailOpts),
+        {
+            failureThreshold: 3,
+            resetTimeout: 30000, // 30 seconds
+            name: 'WelcomeEmailCircuit'
+        }
+    );
+
     try {
-        // Send the email
-        const info = await transporter.sendMail(mailOptions);
+        // Send the email using the circuit breaker
+        const info = await emailCircuitBreaker.fire(mailOptions);
         console.log('Email sent successfully:', info.messageId);
-        
+
         return {
             statusCode: 200,
             body: JSON.stringify({
                 status: 'success',
                 message: 'Welcome email sent successfully',
                 recipient: email,
-                messageId: info.messageId
+                messageId: info.messageId,
+                circuitStatus: emailCircuitBreaker.getStatus()
             })
         };
     } catch (error) {
@@ -87,7 +99,8 @@ module.exports = async (event, context) => {
             statusCode: 500,
             body: JSON.stringify({
                 error: 'Failed to send welcome email',
-                details: error.message
+                details: error.message,
+                circuitStatus: emailCircuitBreaker.getStatus()
             })
         };
     }
