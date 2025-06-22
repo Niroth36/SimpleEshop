@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: promtail
+  namespace: argocd
+  labels:
+    app: logging
+  annotations:
+    description: "Deploys Promtail for log collection"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Niroth36/SimpleEshop.git
+    targetRevision: master
+    path: kubernetes/promtail
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: simpleeshop
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ApplyOutOfSyncOnly=true
+  revisionHistoryLimit: 10

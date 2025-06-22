@@ -81,10 +81,21 @@ print_status "Waiting for Mailpit to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/mailpit -n simpleeshop
 print_status "Mailpit is ready"
 
-# Deploy Grafana for monitoring
-print_header "Deploying Grafana"
+# Deploy monitoring components
+print_header "Deploying Monitoring Components"
+kubectl apply -f prometheus/
+print_status "Prometheus manifests applied"
+
 kubectl apply -f grafana/
 print_status "Grafana manifests applied"
+
+# Deploy logging components
+print_header "Deploying Logging Components"
+kubectl apply -f loki/
+print_status "Loki manifests applied"
+
+kubectl apply -f promtail/
+print_status "Promtail manifests applied"
 
 # Deploy applications
 print_header "Deploying Applications"
@@ -125,6 +136,9 @@ kubectl apply -f argocd/applications/jenkins-app.yaml
 kubectl apply -f argocd/applications/simpleeshop-app.yaml
 kubectl apply -f argocd/applications/minio-app.yaml
 kubectl apply -f argocd/applications/email-services-app.yaml
+kubectl apply -f argocd/applications/monitoring-app.yaml
+kubectl apply -f argocd/applications/logging-app.yaml
+kubectl apply -f argocd/applications/promtail-app.yaml
 print_status "ArgoCD applications configured"
 
 # Display access information
