@@ -1,15 +1,29 @@
 const nodemailer = require('nodemailer');
 const CircuitBreaker = require('../circuit-breaker');
 
+// Import logger if available, otherwise use console
+let logger;
+try {
+    logger = require('../../utils/logger');
+} catch (err) {
+    // Fallback to console if logger module is not available
+    logger = {
+        info: console.log,
+        error: console.error,
+        warn: console.warn,
+        debug: console.log
+    };
+}
+
 module.exports = async (event, context) => {
-    console.log("Function started with event:", event.body);
+    logger.info("Function started with event:", event.body);
 
     let body;
     try {
         // Parse the event body if it's a string
         body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     } catch (error) {
-        console.error("Error parsing event body:", error);
+        logger.error(`Error parsing event body: ${error.message}`);
         return {
             statusCode: 400,
             body: JSON.stringify({ error: "Invalid JSON in request body" })
@@ -21,7 +35,7 @@ module.exports = async (event, context) => {
     const { username, email } = userData;
 
     if (!email) {
-        console.error("No email address provided");
+        logger.error("No email address provided");
         return {
             statusCode: 400,
             body: JSON.stringify({ error: "No email address provided" })
@@ -31,7 +45,7 @@ module.exports = async (event, context) => {
     // Configure SMTP transport
     const smtpHost = process.env.SMTP_HOST || 'mailpit-service';
     const smtpPort = parseInt(process.env.SMTP_PORT || '1025');
-    console.log(`Using SMTP server: ${smtpHost}:${smtpPort}`);
+    logger.info(`Using SMTP server: ${smtpHost}:${smtpPort}`);
 
     // Create a nodemailer transporter
     const transporter = nodemailer.createTransport({
@@ -81,7 +95,7 @@ module.exports = async (event, context) => {
     try {
         // Send the email using the circuit breaker
         const info = await emailCircuitBreaker.fire(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
+        logger.info(`Email sent successfully: ${info.messageId}`);
 
         return {
             statusCode: 200,
@@ -94,7 +108,7 @@ module.exports = async (event, context) => {
             })
         };
     } catch (error) {
-        console.error('Error sending email:', error);
+        logger.error(`Error sending email: ${error.message}`);
         return {
             statusCode: 500,
             body: JSON.stringify({

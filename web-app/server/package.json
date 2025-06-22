@@ -25,7 +25,8 @@
     "redis": "^4.6.12",
     "connect-redis": "^7.1.0",
     "minio": "^7.1.3",
-    "nodemailer": "^6.9.7"
+    "nodemailer": "^6.9.7",
+    "prom-client": "^14.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

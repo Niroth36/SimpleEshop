@@ -14,6 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "nodemailer": "^6.9.0",
-    "minio": "^7.0.32"
+    "minio": "^7.0.32",
+    "prom-client": "^14.2.0"
   }
 }
