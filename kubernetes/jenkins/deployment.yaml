@@ -18,6 +18,10 @@ spec:
         tier: cicd
     spec:
       serviceAccountName: jenkins
+      securityContext:
+        runAsUser: 0  # Run as root
+        runAsGroup: 0
+        fsGroup: 0
       containers:
       - name: jenkins
         image: jenkins/jenkins:lts
@@ -29,21 +33,65 @@ spec:
         volumeMounts:
         - name: jenkins-home
           mountPath: /var/jenkins_home
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
         env:
         - name: JAVA_OPTS
-          value: "-Djenkins.install.runSetupWizard=false -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85"
+          value: "-Djenkins.install.runSetupWizard=false"
+        - name: JENKINS_OPTS
+          value: "--httpPort=8080"
+        - name: DOCKER_HOST
+          value: "unix:///var/run/docker.sock"
+        securityContext:
+          privileged: true
+          runAsUser: 0  # Run as root
+        command: ["/bin/bash"]
+        args:
+          - "-c"
+          - |
+            # Install Node.js 18
+            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+            apt-get install -y nodejs
+            
+            # Install Docker CLI
+            apt-get update
+            apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+            curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+            echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable' > /etc/apt/sources.list.d/docker.list
+            apt-get update
+            apt-get install -y docker-ce-cli
+            
+            # Install Docker Buildx
+            mkdir -p ~/.docker/cli-plugins/
+            curl -SL https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
+            chmod +x ~/.docker/cli-plugins/docker-buildx
+            
+            # Enable Docker buildx
+            docker buildx install
+            
+            # Fix permissions for jenkins user
+            chown -R 1000:1000 /var/jenkins_home
+            
+            # Verify installations
+            echo "✅ Node.js: $(node --version)"
+            echo "✅ npm: $(npm --version)"
+            echo "✅ Docker: $(docker --version)"
+            echo "✅ Docker buildx: $(docker buildx version)"
+            
+            # Start Jenkins
+            exec /usr/local/bin/jenkins.sh
         resources:
           requests:
             memory: "512Mi"
             cpu: "250m"
           limits:
-            memory: "1Gi"
+            memory: "2Gi"
             cpu: "1000m"
         livenessProbe:
           httpGet:
             path: /login
             port: 8080
-          initialDelaySeconds: 90
+          initialDelaySeconds: 120  # Longer delay for tool installation
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 5
@@ -51,7 +99,7 @@ spec:
           httpGet:
             path: /login
             port: 8080
-          initialDelaySeconds: 60
+          initialDelaySeconds: 90   # Longer delay for tool installation
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
@@ -59,3 +107,6 @@ spec:
       - name: jenkins-home
         persistentVolumeClaim:
           claimName: jenkins-pvc
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
