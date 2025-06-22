@@ -11,3 +11,7 @@ data:
   DB_NAME: "techgearhub"
   NODE_ENV: "production"
   PORT: "3000"
+  MINIO_HOST: "minio-service"
+  MINIO_PORT: "9000"
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "minioadmin"
