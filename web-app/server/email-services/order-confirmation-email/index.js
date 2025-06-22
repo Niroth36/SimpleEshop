@@ -12,10 +12,62 @@ const minioClient = new Minio.Client({
     secretKey: process.env.MINIO_SECRET_KEY || "minioadmin"
 });
 
-// Create a server to listen for health checks
+// Create a server to listen for health checks and webhook notifications
 const server = http.createServer((req, res) => {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("Order Confirmation Email Service is running");
+    // Health check endpoint
+    if (req.method === 'GET') {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("Order Confirmation Email Service is running");
+        return;
+    }
+
+    // Handle webhook notifications from MinIO
+    if (req.method === 'POST') {
+        let body = '';
+
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+
+        req.on('end', async () => {
+            try {
+                console.log("Received webhook notification:", body);
+                const notification = JSON.parse(body);
+
+                // Process the notification
+                if (notification.Records && Array.isArray(notification.Records)) {
+                    for (const record of notification.Records) {
+                        // Extract the S3 event details
+                        const s3Event = {
+                            eventName: record.eventName,
+                            s3: {
+                                bucket: { name: record.s3.bucket.name },
+                                object: { key: record.s3.object.key }
+                            }
+                        };
+
+                        await processOrderConfirmation(s3Event);
+                    }
+                } else {
+                    // Handle direct notification format
+                    await processOrderConfirmation(notification);
+                }
+
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ status: "success" }));
+            } catch (error) {
+                console.error("Error processing webhook notification:", error);
+                res.writeHead(500, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Failed to process notification" }));
+            }
+        });
+
+        return;
+    }
+
+    // Handle other requests
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Not Found");
 });
 
 server.listen(8081, () => {
