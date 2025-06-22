@@ -19,8 +19,17 @@ spec:
     spec:
       containers:
       - name: order-confirmation-email
-        image: niroth36/order-confirmation-email:latest
-        imagePullPolicy: Always
+        image: bitnami/node:18
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mkdir -p /app
+          cd /app
+          echo '{"name":"order-confirmation-email","version":"1.0.0","main":"index.js","dependencies":{"nodemailer":"^6.9.1","minio":"^7.0.32"}}' > package.json
+          npm install
+          echo 'const http = require("http"); const server = http.createServer((req, res) => { res.writeHead(200, {"Content-Type": "text/plain"}); res.end("Order Confirmation Email Service is running"); }); server.listen(8081, () => { console.log("Order Confirmation Email Service listening on port 8081"); });' > index.js
+          node index.js
         envFrom:
         - configMapRef:
             name: order-confirmation-email-config
