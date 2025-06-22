@@ -74,6 +74,11 @@ print_header "Removing MinIO"
 kubectl delete -f minio/ --ignore-not-found=true
 print_status "MinIO removed"
 
+# Remove Email Services
+print_header "Removing Email Services"
+kubectl delete -k email-services/ --ignore-not-found=true
+print_status "Email services removed"
+
 # Remove Grafana
 print_header "Removing Grafana"
 kubectl delete -f grafana/ --ignore-not-found=true
