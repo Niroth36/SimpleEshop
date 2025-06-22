@@ -29,7 +29,7 @@ module.exports = async (event, context) => {
     }
 
     // Configure SMTP transport
-    const smtpHost = process.env.SMTP_HOST || 'mailpit';
+    const smtpHost = process.env.SMTP_HOST || 'mailpit-service';
     const smtpPort = parseInt(process.env.SMTP_PORT || '1025');
     console.log(`Using SMTP server: ${smtpHost}:${smtpPort}`);
 
