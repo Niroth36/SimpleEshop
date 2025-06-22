@@ -5,12 +5,14 @@ metadata:
   namespace: argocd
   labels:
     app: simpleeshop
+  annotations:
+    description: "Deploys the SimpleEshop web application"
 spec:
   project: default
   source:
     repoURL: https://github.com/Niroth36/SimpleEshop.git
-    targetRevision: main
-    path: applications/simpleeshop
+    targetRevision: master
+    path: kubernetes/applications/simpleeshop
   destination:
     server: https://kubernetes.default.svc
     namespace: simpleeshop
