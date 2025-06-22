@@ -54,7 +54,7 @@
           spec:
             project: default
             source:
-              repoURL: https://github.com/Niroth36/SimpleEshop-gitops.git
+              repoURL: https://github.com/Niroth36/SimpleEshop.git
               targetRevision: main
               path: kubernetes
             destination:
