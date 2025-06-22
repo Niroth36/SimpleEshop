@@ -97,7 +97,6 @@ spec:
           const CircuitBreaker = require('./circuit-breaker');
 
           module.exports = async (event, context) => {
-              console.log("Function started with event:", event.body);
 
               let body;
               try {
