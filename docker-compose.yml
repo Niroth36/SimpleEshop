@@ -52,6 +52,12 @@ services:
       DB_NAME: techgearhub
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
     ports:
       - "3000:3000"
     depends_on:
@@ -59,6 +65,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
     networks:
       - simpleeshop-network
     restart: unless-stopped
@@ -75,7 +85,7 @@ services:
     image: minio/minio:latest
     container_name: simpleeshop-minio
     ports:
-      - "9000:9000"     # S3 Console
+      - "9002:9000"     # S3 Console
       - "9001:9001"     # MinIO Admin Console
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -92,6 +102,57 @@ services:
       timeout: 10s
       retries: 5
 
+
+  # Mailpit for email testing
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: simpleeshop-mailpit
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI port
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+
+  # Welcome Email Service
+  welcome-email:
+    image: niroth36/welcome-email:latest
+    container_name: simpleeshop-welcome-email
+    ports:
+      - "8080:8080"  # Expose the health check endpoint
+    environment:
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    depends_on:
+      - minio
+      - mailpit
+
+  # Order Confirmation Email Service
+  order-confirmation-email:
+    image: niroth36/order-confirmation-email:latest
+    container_name: simpleeshop-order-confirmation-email
+    ports:
+      - "8081:8081"  # Expose the health check endpoint
+    environment:
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    depends_on:
+      - minio
+      - mailpit
 
 volumes:
   postgres_data:
