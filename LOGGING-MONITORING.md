@@ -268,6 +268,18 @@ kubectl port-forward svc/prometheus 9090:9090 -n simpleeshop
 
 Then open http://localhost:9090 in your browser.
 
+### Loki
+
+**Important Note**: Unlike Prometheus, Loki does not have its own user interface. Loki is a log aggregation system that is accessed through Grafana.
+
+If you need to access Loki's API directly (for debugging or advanced use cases):
+
+```bash
+kubectl port-forward svc/loki 3100:3100 -n simpleeshop
+```
+
+Then you can access the Loki API at http://localhost:3100. However, for normal usage, you should access logs through Grafana as described in the "Browser-Based Log Viewing with Grafana and Loki" section below.
+
 ### Grafana
 
 ```bash

@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Niroth36/SimpleEshop.git
-    targetRevision: main
+    targetRevision: master
     path: kubernetes/jenkins
   destination:
     server: https://kubernetes.default.svc

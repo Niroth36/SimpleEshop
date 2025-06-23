@@ -63,7 +63,7 @@ The GitOps workflow consists of the following components:
 
 ### Jenkins Configuration
 
-1. Access Jenkins at http://{{ ansible_host }}:30080
+1. Access Jenkins at http://<control-plane-ip>:30080
 2. Install the following plugins:
    - Git
    - Docker
@@ -76,7 +76,7 @@ The GitOps workflow consists of the following components:
 
 ### ArgoCD Configuration
 
-1. Access ArgoCD at https://{{ ansible_host }}:30443
+1. Access ArgoCD at https://<control-plane-ip>:30443
 2. Login with the admin credentials
 3. The SimpleEshop application should be automatically configured
 4. If not, create a new application with the following settings:
@@ -163,7 +163,7 @@ git push origin main
 
 ### 2. Monitor the Jenkins Pipeline
 
-1. Go to your Jenkins server at http://{{ ansible_host }}:30080
+1. Go to your Jenkins server at http://<control-plane-ip>:30080
 2. Find your pipeline job and check that it's running
 3. The pipeline will automatically:
    - Build a Docker image from your code
@@ -173,7 +173,7 @@ git push origin main
 
 ### 3. Verify the Deployment in ArgoCD
 
-1. Access ArgoCD at https://{{ ansible_host }}:30443
+1. Access ArgoCD at https://<control-plane-ip>:30443
 2. Login with the admin credentials
 3. Find the SimpleEshop application
 4. Verify that it's synced and healthy
@@ -183,7 +183,7 @@ git push origin main
 
 Once deployed, you can access your application at:
 ```
-http://{{ ansible_host }}:30000
+http://<worker-node-ip>:30000
 ```
 
 ### 5. Verify the Deployment in Kubernetes
