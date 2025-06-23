@@ -89,6 +89,3 @@ echo ""
 echo "order-confirmation-email service test complete."
 echo "Check the Mailpit web interface at http://localhost:8025 to see if an order confirmation email was sent to ordertest@example.com"
 echo "If you see the email, the order-confirmation-email service is working correctly."
-
-# Make the script executable
-chmod +x test-order-confirmation-email.sh

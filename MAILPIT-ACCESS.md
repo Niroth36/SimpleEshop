@@ -6,25 +6,19 @@ This guide provides detailed instructions on how to access the Mailpit email tes
 
 Mailpit is an email testing tool that captures all outgoing emails from your application for testing purposes. It provides a web interface where you can view and inspect these emails without them being sent to real recipients.
 
-## Why Port Forwarding?
+## Accessing Mailpit
 
-In Kubernetes, Mailpit runs inside the cluster and is not directly accessible from outside by default. To access the Mailpit web interface, we need to create a secure tunnel from our local machine to the Mailpit service running in the Kubernetes cluster. This is done using the `kubectl port-forward` command.
+In Kubernetes, Mailpit is deployed as a NodePort service, making it directly accessible from outside the cluster. The web interface is exposed on port 30025 on any node in the cluster.
+
+There are two ways to access Mailpit:
+1. **Direct Access (Recommended)**: Access Mailpit directly through the NodePort
+2. **Port Forwarding**: Create a secure tunnel from your local machine to the Mailpit service
 
 ## Step-by-Step Guide to Access Mailpit
 
-### 1. Ensure you have kubectl installed and configured
+### Method 1: Direct Access (Recommended)
 
-Before you can access Mailpit, make sure you have:
-- kubectl installed on your machine
-- Access to the Kubernetes cluster where SimpleEshop is deployed
-- The correct kubectl context set
-
-You can check your current context with:
-```bash
-kubectl config current-context
-```
-
-### 2. Verify that Mailpit is running
+#### 1. Verify that Mailpit is running
 
 First, check that the Mailpit pod is running in the simpleeshop namespace:
 
@@ -43,9 +37,37 @@ If the pod is not running or shows a status other than "Running", check the logs
 kubectl logs -n simpleeshop -l app=mailpit
 ```
 
-### 3. Start port forwarding
+#### 2. Access the Mailpit web interface
 
-To access the Mailpit web interface, run the following command:
+Since Mailpit is deployed as a NodePort service, you can access it directly through any node in your cluster:
+
+```
+http://<control-plane-ip>:30025
+```
+
+Replace `<control-plane-ip>` with the IP address of your control plane node or any worker node in the cluster.
+
+You should now see the Mailpit web interface where you can view all emails captured by the system.
+
+### Method 2: Port Forwarding (Alternative)
+
+If you cannot access the NodePort directly (e.g., due to network restrictions), you can use port forwarding as an alternative.
+
+#### 1. Ensure you have kubectl installed and configured
+
+Before you can use port forwarding, make sure you have:
+- kubectl installed on your machine
+- Access to the Kubernetes cluster where SimpleEshop is deployed
+- The correct kubectl context set
+
+You can check your current context with:
+```bash
+kubectl config current-context
+```
+
+#### 2. Start port forwarding
+
+To access the Mailpit web interface via port forwarding, run the following command:
 
 ```bash
 kubectl port-forward svc/mailpit-service -n simpleeshop 8025:8025
@@ -58,7 +80,7 @@ This command:
 
 **Note:** Keep this terminal window open while you're accessing Mailpit. If you close it, the port forwarding will stop and you'll lose access to the Mailpit interface.
 
-### 4. Access the Mailpit web interface
+#### 3. Access the Mailpit web interface
 
 While the port-forward command is running, open your web browser and navigate to:
 
@@ -97,20 +119,20 @@ If kubectl shows "Unable to connect to the server":
 2. Verify your kubectl context is correct
 3. Ensure you have network access to the Kubernetes API server
 
-## Alternative Access Methods
-
-### NodePort (if configured)
-
-If Mailpit is exposed via NodePort, you can access it directly at:
-```
-http://<node-ip>:<nodeport>
-```
+## Additional Access Methods
 
 ### Ingress (if configured)
 
-If Mailpit is exposed via an Ingress controller, you can access it at the configured hostname:
+If Mailpit is also exposed via an Ingress controller, you can access it at the configured hostname:
 ```
 http://mailpit.your-domain.com
+```
+
+### Local Development
+
+When running SimpleEshop locally with Docker Compose, Mailpit is accessible at:
+```
+http://localhost:8025
 ```
 
 ## Viewing Emails
