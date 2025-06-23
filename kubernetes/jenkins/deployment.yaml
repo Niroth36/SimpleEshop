@@ -37,7 +37,7 @@ spec:
           mountPath: /var/run/docker.sock
         env:
         - name: JAVA_OPTS
-          value: "-Djenkins.install.runSetupWizard=false"
+          value: "-Djenkins.install.runSetupWizard=true"
         - name: JENKINS_OPTS
           value: "--httpPort=8080"
         - name: DOCKER_HOST
