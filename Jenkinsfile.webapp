@@ -150,7 +150,7 @@
                               image: gcr.io/kaniko-project/executor:slim
                               imagePullPolicy: Always
                               command:
-                              - cat
+                              - sh
                               tty: true
                               resources:
                                 requests:
