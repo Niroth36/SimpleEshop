@@ -1,325 +1,241 @@
-   // Jenkinsfile for building and deploying the SimpleEshop web application
-   // This pipeline now runs directly on the Jenkins controller to bypass Kubernetes pod scheduling issues
-   // This is a temporary solution until the pod scheduling issues can be resolved
-   //
-   // IMPORTANT: Recent changes to fix Kaniko pod issues:
-   // 1. Changed Kaniko image from slim to debug version (more utilities available)
-   // 2. Changed command from 'cat' to '/busybox/sh' (should be available in debug image)
-   // 3. Increased resource requests and limits (debug image needs more resources)
-   // 4. Commented out priorityClassName to avoid errors when the PriorityClass doesn't exist
-   //
-   // Note: If you want to use priorityClassName for higher scheduling priority,
-   // you'll need to create the "high-priority" PriorityClass first. See JENKINS-POD-SCHEDULING-GUIDE.md
-   // for instructions on creating the PriorityClass.
-   pipeline {
-       // Run directly on the Jenkins controller instead of using Kubernetes pods
-       agent any
+pipeline {
+    agent any
 
-       environment {
-           DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
-           DOCKER_IMAGE = 'niroth36/simpleeshop'
-           DOCKER_TAG = "${env.BUILD_NUMBER}"
-       }
+    environment {
+        DOCKER_IMAGE = 'niroth36/simpleeshop'
+        GITOPS_REPO = 'https://github.com/Niroth36/SimpleEshop.git'
+        GITOPS_CREDENTIALS = 'github-token'
+        APP_NAME = 'simpleeshop-webapp'
+    }
 
-       stages {
-           stage('Checkout') {
-               steps {
-                   // Print debugging information
-                   echo "Starting pipeline on Jenkins controller"
-                   echo "Running on node: ${env.NODE_NAME}"
+    triggers {
+        githubPush()
+    }
 
-                   // Proceed with checkout
-                   checkout scm
-                   script {
-                       env.IMAGE_TAG = sh(
-                           script: "git rev-parse --short HEAD",
-                           returnStdout: true
-                       ).trim()
-                       env.BUILD_NUMBER_TAG = "${env.BUILD_NUMBER}-${env.IMAGE_TAG}"
-                       env.FULL_IMAGE_TAG = "${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
-                   }
-                   echo "Building: ${env.FULL_IMAGE_TAG}"
-               }
-           }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.IMAGE_TAG = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+                    env.BUILD_NUMBER_TAG = "${env.BUILD_NUMBER}-${env.IMAGE_TAG}"
+                    env.FULL_IMAGE_TAG = "${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
+                }
+                echo "🏗️ Building: ${env.FULL_IMAGE_TAG}"
+            }
+        }
 
-           stage('Check for Web App Changes') {
-               steps {
-                   script {
-                       // Get the list of changed files
-                       def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD || echo "first-build"', returnStdout: true).trim()
+        stage('Check for Web App Changes') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD || echo "first-build"',
+                        returnStdout: true
+                    ).trim()
 
-                       // Check if any files in the web-app directory have changed
-                       def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" && echo "true" || echo "false"', returnStdout: true).trim()
+                    echo "📝 Changed files: ${changedFiles}"
 
-                       if (changedFiles == "first-build") {
-                           echo "First build or no previous commit - proceeding with build"
-                           env.SHOULD_BUILD = "true"
-                       } else if (webAppChanged == "true") {
-                           echo "Changes detected in web-app directory. Proceeding with build."
-                           env.SHOULD_BUILD = "true"
-                       } else {
-                           echo "No changes detected in web-app directory. Skipping build."
-                           env.SHOULD_BUILD = "false"
-                           currentBuild.result = 'SUCCESS'
-                       }
-                   }
-               }
-           }
+                    def webAppChanged = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD | grep -q "^web-app/" && echo "true" || echo "false"',
+                        returnStdout: true
+                    ).trim()
 
-           stage('Install Dependencies') {
-               when {
-                   environment name: 'SHOULD_BUILD', value: 'true'
-               }
-               steps {
-                   dir('web-app/server') {
-                       script {
-                           if (!fileExists('package-lock.json')) {
-                               echo "package-lock.json not found, running npm install to generate it"
-                               sh 'npm install'
-                           } else {
-                               sh 'npm ci || npm install'
-                           }
-                       }
-                   }
-               }
-           }
+                    if (changedFiles == "first-build") {
+                        echo "🎯 First build or no previous commit - proceeding with build"
+                        env.SHOULD_BUILD = "true"
+                    } else if (webAppChanged == "true") {
+                        echo "✅ Changes detected in web-app directory - proceeding with build"
+                        env.SHOULD_BUILD = "true"
+                    } else if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0) {
+                        echo "🔄 Manual build triggered - proceeding with build"
+                        env.SHOULD_BUILD = "true"
+                    } else {
+                        echo "ℹ️ No changes in web-app directory - skipping Docker build"
+                        env.SHOULD_BUILD = "false"
+                    }
+                }
+            }
+        }
 
-           stage('Lint') {
-               when {
-                   environment name: 'SHOULD_BUILD', value: 'true'
-               }
-               steps {
-                   dir('web-app/server') {
-                       // Add linting if you have ESLint configured
-                       sh 'echo "Linting would run here if configured"'
-                   }
-               }
-           }
+        stage('Install Dependencies') {
+            when {
+                environment name: 'SHOULD_BUILD', value: 'true'
+            }
+            steps {
+                dir('web-app') {
+                    script {
+                        if (!fileExists('package-lock.json')) {
+                            echo "⚠️ package-lock.json not found, running npm install to generate it"
+                            sh 'npm install'
+                        } else {
+                            sh 'npm ci'
+                        }
+                    }
+                }
+            }
+        }
 
-           stage('Test') {
-               when {
-                   environment name: 'SHOULD_BUILD', value: 'true'
-               }
-               steps {
-                   dir('web-app/server') {
-                       // Run tests if you have them configured
-                       sh 'echo "Tests would run here if configured"'
-                   }
-                   // Integration tests can now run directly on the Jenkins controller
-                   echo "Running integration tests"
-                   sh 'cd ../../ && ./test-integration.sh || echo "Integration tests failed but continuing"'
-               }
-           }
+        stage('Run Tests') {
+            when {
+                environment name: 'SHOULD_BUILD', value: 'true'
+            }
+            parallel {
+                stage('Unit Tests') {
+                    steps {
+                        dir('web-app') {
+                            sh 'npm test || echo "Tests not configured"'
+                        }
+                    }
+                }
+                stage('Lint Code') {
+                    steps {
+                        dir('web-app') {
+                            sh 'npm run lint || echo "Lint not configured"'
+                        }
+                    }
+                }
+            }
+        }
 
-           stage('Build and Push Docker Image') {
-               when {
-                   environment name: 'SHOULD_BUILD', value: 'true'
-               }
-               steps {
-                   script {
-                       try {
-                           // Use Kaniko to build and push Docker images without Docker daemon
-                           // Add timeout and retry mechanism to handle pod scheduling failures
-                           timeout(time: 10, unit: 'MINUTES') {
-                               retry(3) {
-                                   echo "Attempting to create Kaniko pod (Attempt ${currentBuild.getNumber()})"
-                               podTemplate(yaml: """
-                          apiVersion: v1
-                          kind: Pod
-                          spec:
-                            # Add tolerations to allow scheduling on any node
-                            tolerations:
-                            - operator: "Exists"
-
-                            # Reduce scheduling constraints
-                            terminationGracePeriodSeconds: 5
-
-                            # Print debugging information
-                            restartPolicy: Never
-
-                            # Add priority class to increase scheduling priority
-                            # priorityClassName: "high-priority"  # Commented out - create this PriorityClass first or keep commented
-
-                            # Add node affinity to prefer nodes with more resources if available
-                            affinity:
-                              nodeAffinity:
-                                preferredDuringSchedulingIgnoredDuringExecution:
-                                - weight: 100
-                                  preference:
-                                    matchExpressions:
-                                    - key: node-role.kubernetes.io/worker
-                                      operator: Exists
-                                - weight: 50
-                                  preference:
-                                    matchExpressions:
-                                    - key: kubernetes.io/hostname
-                                      operator: In
-                                      values:
-                                      - worker-node
-
-                            # Further reduce resource requests to absolute minimum
-                            containers:
-                            - name: kaniko
-                              image: gcr.io/kaniko-project/executor:debug
-                              imagePullPolicy: Always
-                              command:
-                              - /busybox/sh
-                              tty: true
-                              resources:
-                                requests:
-                                  memory: "64Mi"
-                                  cpu: "10m"
-                                limits:
-                                  memory: "512Mi"
-                                  cpu: "200m"
-                              volumeMounts:
-                              - name: docker-config
-                                mountPath: /kaniko/.docker
-                            volumes:
+        stage('Build and Push Docker Image') {
+            when {
+                environment name: 'SHOULD_BUILD', value: 'true'
+            }
+            steps {
+                script {
+                    // Create a pod template for Kaniko with optimized settings
+                    def kanikoYaml = """
+                        apiVersion: v1
+                        kind: Pod
+                        spec:
+                          containers:
+                          - name: kaniko
+                            image: gcr.io/kaniko-project/executor:debug
+                            imagePullPolicy: IfNotPresent
+                            command:
+                            - /busybox/cat
+                            tty: true
+                            resources:
+                              requests:
+                                memory: "16Mi"
+                                cpu: "5m"
+                              limits:
+                                memory: "256Mi"
+                                cpu: "100m"
+                            volumeMounts:
                             - name: docker-config
-                              secret:
-                                secretName: docker-hub-secret
-                                items:
-                                - key: .dockerconfigjson
-                                  path: config.json
-                       """) {
-                           node(POD_LABEL) {
-                               // Copy workspace to pod
-                               container('kaniko') {
-                                   // Print debugging information
-                                   echo "Pod name: ${env.POD_NAME}"
-                                   echo "Node name: ${env.NODE_NAME}"
-                                   sh "ls -la /workspace || echo 'Workspace directory not found'"
-                                   sh "df -h || echo 'Disk space command failed'"
-                                   sh "cat /etc/os-release || echo 'OS release info not available'"
+                              mountPath: /kaniko/.docker
+                          restartPolicy: Never
+                          terminationGracePeriodSeconds: 5
+                          tolerations:
+                          - operator: "Exists"
+                          volumes:
+                          - name: docker-config
+                            secret:
+                              secretName: docker-hub-secret
+                              items:
+                              - key: .dockerconfigjson
+                                path: config.json
+                    """
 
-                                   // Get the workspace from the Jenkins controller
-                                   sh "mkdir -p /workspace || echo 'Failed to create workspace directory'"
-                                   sh "cp -r /home/jenkins/agent/workspace/${env.JOB_NAME}/* /workspace/ || echo 'Failed to copy workspace'"
-                                   sh "ls -la /workspace || echo 'Workspace directory empty after copy'"
+                    // Run Kaniko in a dedicated pod
+                    podTemplate(yaml: kanikoYaml) {
+                        node(POD_LABEL) {
+                            // Get the code again in the Kaniko pod
+                            checkout scm
 
-                                   // Build and push the Docker image with Kaniko
-                                   sh """
-                                       echo "Starting Kaniko build..."
-                                       /kaniko/executor \\
-                                           --dockerfile=Dockerfile.x86 \\
-                                           --context=/workspace \\
-                                           --destination=${DOCKER_IMAGE}:${BUILD_NUMBER_TAG} \\
-                                           --destination=${DOCKER_IMAGE}:latest \\
-                                           --cache=true \\
-                                           --cache-ttl=24h \\
-                                           --skip-tls-verify \\
-                                           --verbosity=debug
-                                   """
+                            // Build and push the image with Kaniko
+                            container('kaniko') {
+                                sh """
+                                    /kaniko/executor \\
+                                        --dockerfile=Dockerfile.x86 \\
+                                        --context=\$(pwd) \\
+                                        --destination=${FULL_IMAGE_TAG} \\
+                                        --destination=${DOCKER_IMAGE}:latest \\
+                                        --cache=true \\
+                                        --cache-ttl=24h \\
+                                        --skip-tls-verify
+                                """
+                                echo "✅ Image built and pushed: ${FULL_IMAGE_TAG}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-                                   echo "Image built and pushed: ${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
-                               }
-                           }
-                       }
-                           }
-                       }
-                       } catch (Exception e) {
-                           echo "ERROR: Kaniko pod scheduling or container startup failed after multiple attempts"
-                           echo "Exception: ${e.getMessage()}"
-                           // Avoid using restricted method getStackTrace()
-                           echo "Marking build as UNSTABLE instead of failing"
-                           echo "Please check the Kubernetes cluster status and pod events"
-                           echo "Common issues:"
-                           echo "1. Command not found in container image (check command in podTemplate)"
-                           echo "2. Resource constraints (reduce requests or increase cluster resources)"
-                           echo "3. Image pull failures (check image name and registry access)"
-                           echo "4. Secret mounting problems (verify docker-hub-secret exists)"
-                           echo "5. Network connectivity issues (check cluster networking)"
-                           echo "You may need to manually clean up stuck pods:"
-                           echo "kubectl get pods -n jenkins | grep simpleeshop-webapp"
-                           echo "kubectl delete pod -n jenkins <pod-name>"
-                           unstable('Kaniko pod scheduling or container startup failed')
-                       }
-                   }
-               }
-           }
+        stage('Update Kubernetes Manifests') {
+            when {
+                environment name: 'SHOULD_BUILD', value: 'true'
+            }
+            steps {
+                script {
+                    withCredentials([string(credentialsId: GITOPS_CREDENTIALS, variable: 'GIT_TOKEN')]) {
+                        sh """
+                            git config user.email "jenkins@simpleeshop.local"
+                            git config user.name "Jenkins CI/CD"
 
-           stage('Update Kubernetes Manifests') {
-               when {
-                   environment name: 'SHOULD_BUILD', value: 'true'
-               }
-               steps {
-                   script {
-                       withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
-                           sh """
-                               git config user.email "jenkins@simpleeshop.local"
-                               git config user.name "Jenkins CI/CD"
+                            echo "🔍 Looking for deployment manifests..."
+                            find kubernetes/ -name "*deployment*.yaml" -type f | head -5
 
-                               echo "Looking for deployment manifests..."
-                               find kubernetes/ -name "*deployment*.yaml" -type f | head -5
+                            if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
+                                echo "📝 Updating kubernetes/applications/simpleeshop-deployment.yaml"
+                                sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/applications/simpleeshop-deployment.yaml
+                                grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
+                            elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
+                                echo "📝 Updating kubernetes/simpleeshop-deployment.yaml"
+                                sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/simpleeshop-deployment.yaml
+                                grep "image:" kubernetes/simpleeshop-deployment.yaml
+                            else
+                                echo "⚠️ Searching for any deployment file with simpleeshop..."
+                                find . -name "*simpleeshop*deployment*.yaml" -type f
+                                find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
+                            fi
 
-                               if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
-                                   echo "Updating kubernetes/applications/simpleeshop-deployment.yaml"
-                                   sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/applications/simpleeshop-deployment.yaml
-                                   grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
-                               elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
-                                   echo "Updating kubernetesss/simpleeshop-deployment.yaml"
-                                   sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/simpleeshop-deployment.yaml
-                                   grep "image:" kubernetes/simpleeshop-deployment.yaml
-                               else
-                                   echo "Searching for any deployment file with simpleeshop..."
-                                   find . -name "*simpleeshop*deployment*.yaml" -type f
-                                   find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
-                               fi
+                            if git diff --quiet; then
+                                echo "ℹ️ No changes to commit"
+                            else
+                                echo "📋 Changes detected, committing..."
+                                git add kubernetes/
+                                git commit -m "🚀 Update ${APP_NAME} image to ${BUILD_NUMBER_TAG}"
+                                git push https://x-access-token:${GIT_TOKEN}@github.com/Niroth36/SimpleEshop.git HEAD:master
+                                echo "✅ Kubernetes manifests updated!"
+                            fi
+                        """
+                    }
+                }
+            }
+        }
+    }
 
-                               if git diff --quiet; then
-                                   echo "No changes to commit"
-                               else
-                                   echo "Changes detected, committing..."
-                                   git add kubernetes/
-                                   git commit -m "Update web-app image to ${BUILD_NUMBER_TAG}"
-                                   git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:master
-                                   echo "Kubernetes manifests updated!"
-                               fi
-                           """
-                       }
-                   }
-               }
-           }
-       }
+    post {
+        always {
+            // Clean up workspace
+            cleanWs()
+        }
 
-       post {
-           always {
-               node('') {
-                   deleteDir()
-               }
-           }
-           success {
-               script {
-                   if (env.SHOULD_BUILD == "true") {
-                       echo """
-                       SUCCESS: Web App Pipeline completed successfully!
+        success {
+            script {
+                if (env.SHOULD_BUILD == "true") {
+                    echo """
+                    🎉 SUCCESS: SimpleEshop WebApp CI/CD Completed!
 
-                       Image: ${FULL_IMAGE_TAG}
-                       Deployment: Updated via GitOps
-                       URL: http://4.210.149.226:30000
+                    📦 Image: ${FULL_IMAGE_TAG}
+                    🚀 Deployment: Updated via GitOps
+                    🌐 URL: http://4.210.149.226:30000
+                    """
+                }
+            }
+        }
 
-                       The image has been built with Kaniko and pushed to Docker Hub.
-                       The Kubernetes manifests have been updated with the new image tag.
-                       """
-                   } else {
-                       echo "Web App Pipeline completed successfully! (No changes detected)"
-                   }
-               }
-           }
-           failure {
-               echo """
-               FAILED: Web App Pipeline failed!
-
-               Check the logs for more details. Common issues:
-               - Pod scheduling issues (resource constraints)
-               - Image pull failures
-               - Secret mounting problems
-               - Kaniko execution errors
-               - Workspace copy issues
-
-               Build: ${BUILD_NUMBER} | Commit: ${env.IMAGE_TAG ?: 'unknown'}
-               """
-           }
-       }
-   }
+        failure {
+            echo """
+            ❌ FAILED: Check Docker Hub secret and GitHub credentials
+            📋 Build: ${BUILD_NUMBER} | Commit: ${env.IMAGE_TAG}
+            """
+        }
+    }
+}
