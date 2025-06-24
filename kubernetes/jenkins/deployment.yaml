@@ -52,7 +52,7 @@ spec:
             # Install Node.js 18
             curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
             apt-get install -y nodejs
-            
+
             # Install Docker CLI
             apt-get update
             apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
@@ -60,24 +60,24 @@ spec:
             echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable' > /etc/apt/sources.list.d/docker.list
             apt-get update
             apt-get install -y docker-ce-cli
-            
+
             # Install Docker Buildx
             mkdir -p ~/.docker/cli-plugins/
             curl -SL https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
             chmod +x ~/.docker/cli-plugins/docker-buildx
-            
+
             # Enable Docker buildx
             docker buildx install
-            
+
             # Fix permissions for jenkins user
             chown -R 1000:1000 /var/jenkins_home
-            
+
             # Verify installations
             echo "✅ Node.js: $(node --version)"
             echo "✅ npm: $(npm --version)"
             echo "✅ Docker: $(docker --version)"
             echo "✅ Docker buildx: $(docker buildx version)"
-            
+
             # Start Jenkins
             exec /usr/local/bin/jenkins.sh
         resources:

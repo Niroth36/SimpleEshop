@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://github.com/Niroth36/SimpleEshop.git
     targetRevision: master
-    path: applications/database
+    path: kubernetes/database
   destination:
     server: https://kubernetes.default.svc
     namespace: simpleeshop
@@ -24,4 +24,4 @@ spec:
     syncOptions:
     - CreateNamespace=true
     - ApplyOutOfSyncOnly=true
-  revisionHistoryLimit: 10
+  revisionHistoryLimit: 3

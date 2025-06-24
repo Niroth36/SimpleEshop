@@ -24,4 +24,4 @@ spec:
     syncOptions:
     - CreateNamespace=true
     - ApplyOutOfSyncOnly=true
-  revisionHistoryLimit: 10
+  revisionHistoryLimit: 3
