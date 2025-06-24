@@ -245,7 +245,7 @@
                                    sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/applications/simpleeshop-deployment.yaml
                                    grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
                                elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
-                                   echo "Updating kubernetess/simpleeshop-deployment.yaml"
+                                   echo "Updating kubernetes/simpleeshop-deployment.yaml"
                                    sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/simpleeshop-deployment.yaml
                                    grep "image:" kubernetes/simpleeshop-deployment.yaml
                                else
