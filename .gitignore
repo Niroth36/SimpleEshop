@@ -52,6 +52,7 @@ yarn-error.log*
 
 # IDE and editors
 .idea
+infrastructure/azure/terraform.vars
 .vscode/
 *.swp
 *.swo
