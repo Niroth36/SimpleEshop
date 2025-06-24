@@ -14,7 +14,7 @@ Before you begin, ensure you have:
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/Niroth36/SimpleEshop.git
+git clone https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git
 cd SimpleEshop
 ```
 
@@ -133,7 +133,7 @@ After logging in to Jenkins:
    - Select "Pipeline" and click "OK"
    - In the configuration page, under "Pipeline", select "Pipeline script from SCM"
    - Select "Git" as the SCM
-   - Enter your repository URL (e.g., https://github.com/Niroth36/SimpleEshop.git)
+   - Enter your repository URL (e.g., https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git)
    - Specify the branch (e.g., "main")
    - Set the Script Path to "Jenkinsfile"
    - Click "Save"
@@ -168,8 +168,8 @@ After logging in to ArgoCD:
    - Click "New App"
    - Set Name to "simpleeshop"
    - Set Project to "default"
-   - Set Repository URL to "https://github.com/Niroth36/SimpleEshop-gitops.git"
-   - Set Path to "kubernetes"
+   - Set Repository URL to "https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git"
+   - Set Path to "gitops"
    - Set Destination to "https://kubernetes.default.svc"
    - Set Namespace to "simpleeshop"
    - Enable "Auto-create Namespace"
@@ -242,8 +242,8 @@ To verify that everything is working correctly:
    - ArgoCD uses a self-signed certificate by default
    - You can safely accept the certificate warning in your browser
 
-3. **GitOps repository not accessible:**
-   - Ensure that your GitOps repository is public or that you've configured the proper credentials in ArgoCD
+3. **Repository not accessible:**
+   - Ensure that your repository is public or that you've configured the proper credentials in ArgoCD
 
 4. **Docker Hub rate limiting:**
    - If you encounter Docker Hub rate limiting, ensure you've configured Docker Hub credentials in Jenkins
@@ -255,10 +255,10 @@ You have successfully deployed Jenkins and ArgoCD to your Kubernetes cluster usi
 1. Jenkins handles the Continuous Integration (CI) part:
    - Building the Docker image
    - Pushing the image to Docker Hub
-   - Updating the GitOps repository
+   - Updating the GitOps directory
 
 2. ArgoCD handles the Continuous Deployment (CD) part:
-   - Monitoring the GitOps repository for changes
+   - Monitoring the GitOps directory for changes
    - Automatically deploying the application to the Kubernetes cluster
 
-This GitOps workflow provides a robust and automated way to deploy your application, ensuring that your deployment is always in sync with the desired state defined in your GitOps repository.
+This GitOps workflow provides a robust and automated way to deploy your application, ensuring that your deployment is always in sync with the desired state defined in your GitOps directory.

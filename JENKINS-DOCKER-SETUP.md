@@ -172,7 +172,7 @@ Create a simple test pipeline to verify that Docker is working correctly:
    ```groovy
    pipeline {
        agent any
-       
+
        stages {
            stage('Test Docker') {
                steps {
@@ -241,15 +241,11 @@ sg microk8s -c "microk8s kubectl create configmap jenkins-entrypoint --from-file
 # (This would require modifying the deployment YAML to add the entrypoint)
 ```
 
-## Alternative Approach: Using Kaniko
+## Alternative Approaches
 
-If you continue to have issues with Docker socket mounting, consider using Kaniko, which doesn't require Docker daemon access:
+If you continue to have issues with Docker socket mounting, consider using alternative approaches for building Docker images in Jenkins. There are several options available, each with its own advantages and disadvantages.
 
-1. Install the Kaniko plugin in Jenkins
-2. Modify your Jenkinsfile to use Kaniko for building Docker images
-3. Configure Kubernetes pod templates for Kaniko
-
-For more information on using Kaniko with Jenkins, refer to the [Kaniko documentation](https://github.com/GoogleContainerTools/kaniko).
+Consult the Jenkins and Docker documentation for more information on alternative approaches to building Docker images in Jenkins.
 
 ## Conclusion
 

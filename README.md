@@ -46,7 +46,7 @@ For detailed information about all the technologies used in this project, includ
 1. **Download the files:**
    ```bash
    # Clone the repository
-   git clone https://github.com/Niroth36/SimpleEshop.git
+   git clone https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git
    cd SimpleEshop
    ```
 

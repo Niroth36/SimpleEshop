@@ -16,7 +16,7 @@ The SimpleEshop CI/CD architecture follows GitOps principles, with separate pipe
                            ▼                    │
                     ┌─────────────┐             │
                     │   GitOps    │             │
-                    │  Repository  │            │
+                    │  Directory   │            │
                     └──────┬──────┘             │
                            │                    │
                            │                    │
@@ -38,10 +38,10 @@ The SimpleEshop CI/CD architecture follows GitOps principles, with separate pipe
 
 ### 1. GitHub Repository
 
-The main GitHub repository (https://github.com/Niroth36/SimpleEshop) contains:
+The main GitHub repository (https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop) contains:
 - Web application code (in the `web-app` directory)
 - Infrastructure code (in the `kubernetes`, `infrastructure`, and `ansible` directories)
-- CI/CD configuration (Jenkinsfile, Jenkinsfile.webapp, Jenkinsfile.infra)
+- CI/CD configuration (Jenkinsfile)
 
 ### 2. Jenkins
 
@@ -49,34 +49,32 @@ Jenkins handles the Continuous Integration (CI) part of the pipeline:
 - Building and testing the application
 - Building Docker images
 - Pushing images to Docker Hub
-- Updating the GitOps repository with new image tags or configuration changes
+- Updating the GitOps directory with new image tags or configuration changes
 
-We have set up two separate Jenkins pipelines:
-1. **Web App Pipeline** (Jenkinsfile.webapp): Triggered by changes to the `web-app` directory
-2. **Infrastructure Pipeline** (Jenkinsfile.infra): Triggered by changes to the `kubernetes`, `infrastructure`, or `ansible` directories
+We have set up a Jenkins pipeline that handles both web application and infrastructure changes.
 
 ### 3. Docker Hub
 
 Docker Hub serves as the container registry where the built Docker images are stored:
-- Main application image: `niroth36/simpleeshop`
-- Welcome email service image: `niroth36/welcome-email`
-- Order confirmation email service image: `niroth36/order-confirmation-email`
+- Main application image: `<YOUR_DOCKERHUB_USERNAME>/simpleeshop`
+- Welcome email service image: `<YOUR_DOCKERHUB_USERNAME>/welcome-email`
+- Order confirmation email service image: `<YOUR_DOCKERHUB_USERNAME>/order-confirmation-email`
 
-### 4. GitOps Repository
+### 4. GitOps Directory
 
-The GitOps repository (https://github.com/Niroth36/SimpleEshop-gitops) contains:
+The GitOps directory in the main repository contains:
 - Kubernetes manifests for deploying the application
 - Configuration files for the application
 - The desired state of the entire application
 
-This repository is updated by the Jenkins pipelines when changes are made to the main repository.
+This directory is updated by the Jenkins pipeline when changes are made to the application.
 
 ### 5. ArgoCD
 
 ArgoCD handles the Continuous Deployment (CD) part of the pipeline:
-- Monitoring the GitOps repository for changes
+- Monitoring the GitOps directory for changes
 - Automatically deploying changes to the Kubernetes cluster
-- Ensuring the actual state of the cluster matches the desired state in the GitOps repository
+- Ensuring the actual state of the cluster matches the desired state in the GitOps directory
 
 ## Workflow
 
@@ -84,42 +82,41 @@ ArgoCD handles the Continuous Deployment (CD) part of the pipeline:
 
 1. Developer makes changes to files in the `web-app` directory
 2. Developer commits and pushes changes to GitHub
-3. GitHub webhook triggers the Web App Pipeline in Jenkins
+3. GitHub webhook triggers the Jenkins pipeline
 4. Jenkins checks out the code and verifies that changes were made to the `web-app` directory
 5. Jenkins builds and tests the application
 6. Jenkins builds a new Docker image and tags it with the build number
 7. Jenkins pushes the Docker image to Docker Hub
-8. Jenkins updates the image tag in the GitOps repository
-9. ArgoCD detects the changes in the GitOps repository
+8. Jenkins updates the image tag in the GitOps directory
+9. ArgoCD detects the changes in the GitOps directory
 10. ArgoCD automatically deploys the new version to the Kubernetes cluster
 
 ### Infrastructure Changes
 
 1. Developer makes changes to files in the `kubernetes`, `infrastructure`, or `ansible` directories
 2. Developer commits and pushes changes to GitHub
-3. GitHub webhook triggers the Infrastructure Pipeline in Jenkins
+3. GitHub webhook triggers the Jenkins pipeline
 4. Jenkins checks out the code and verifies that changes were made to infrastructure files
 5. Jenkins validates the infrastructure files (Kubernetes manifests, Terraform/Tofu files, Ansible playbooks)
-6. For Kubernetes changes, Jenkins updates the GitOps repository with the new manifests
-7. ArgoCD detects the changes in the GitOps repository
+6. For Kubernetes changes, Jenkins updates the GitOps directory with the new manifests
+7. ArgoCD detects the changes in the GitOps directory
 8. ArgoCD automatically applies the new configuration to the Kubernetes cluster
 
 ## Access Points
 
-- **Jenkins**: http://4.210.149.226:30080
-- **ArgoCD**: https://4.210.149.226:30443
-- **SimpleEshop Application**: http://4.210.149.226:30000
+- **Jenkins**: http://<YOUR_CONTROL_PLANE_IP>:30080
+- **ArgoCD**: https://<YOUR_CONTROL_PLANE_IP>:30443
+- **SimpleEshop Application**: http://<YOUR_CONTROL_PLANE_IP>:30000
 
 ## Documentation
 
 Detailed documentation for each component of the CI/CD setup is available in the following files:
 
-1. [WEBAPP-CICD-SETUP.md](WEBAPP-CICD-SETUP.md): Setting up the Web App CI/CD pipeline
-2. [INFRA-CICD-SETUP.md](INFRA-CICD-SETUP.md): Setting up the Infrastructure CI/CD pipeline
-3. [JENKINS-SSH-SETUP.md](JENKINS-SSH-SETUP.md): Setting up SSH keys for Jenkins to access GitHub
-4. [GITHUB-WEBHOOK-SETUP.md](GITHUB-WEBHOOK-SETUP.md): Setting up GitHub webhooks to trigger Jenkins pipelines
-5. [JENKINS-ARGOCD-DEPLOYMENT.md](JENKINS-ARGOCD-DEPLOYMENT.md): Deploying Jenkins and ArgoCD to Kubernetes
-6. [GITOPS.md](GITOPS.md): Overview of the GitOps workflow
+1. [COMPLETE-JENKINS-PIPELINE-GUIDE.md](COMPLETE-JENKINS-PIPELINE-GUIDE.md): Setting up the CI/CD pipeline
+2. [JENKINS-SSH-SETUP.md](JENKINS-SSH-SETUP.md): Setting up SSH keys for Jenkins to access GitHub
+3. [GITHUB-WEBHOOK-SETUP.md](GITHUB-WEBHOOK-SETUP.md): Setting up GitHub webhooks to trigger Jenkins pipelines
+4. [JENKINS-ARGOCD-DEPLOYMENT.md](JENKINS-ARGOCD-DEPLOYMENT.md): Deploying Jenkins and ArgoCD to Kubernetes
+5. [GITOPS.md](GITOPS.md): Overview of the GitOps workflow
 
 ## Security Considerations
 

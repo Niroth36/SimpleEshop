@@ -52,18 +52,18 @@ Copy the output of the last command (the public key) as you'll need to add it to
 
 ## Step 4: Update the Jenkinsfile to Use SSH
 
-Update your Jenkinsfile.webapp to use SSH instead of HTTPS for Git operations:
+Update your Jenkinsfile to use SSH instead of HTTPS for Git operations:
 
 ```groovy
 // Change this line:
-sh "git clone https://github.com/Niroth36/SimpleEshop-gitops.git"
+sh "git clone https://github.com/Niroth36/SimpleEshop.git"
 
 // To this:
-sh "git clone git@github.com:Niroth36/SimpleEshop-gitops.git"
+sh "git clone git@github.com:Niroth36/SimpleEshop.git"
 
 // And change this block:
 withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-    sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop-gitops.git main"
+    sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git main"
 }
 
 // To this:

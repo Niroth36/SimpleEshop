@@ -92,7 +92,7 @@ If you want to trigger the pipeline only when changes are made to the web-app di
 
 If your pipeline is being triggered for all changes, not just web-app changes:
 
-1. Check your Jenkinsfile.webapp to ensure the "Check for Web App Changes" stage is working correctly
+1. Check your Jenkinsfile to ensure the "Check for Web App Changes" stage is working correctly
 2. Test the git diff command manually to ensure it's returning the expected results
 
 ## Security Considerations

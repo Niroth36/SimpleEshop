@@ -149,10 +149,10 @@ Docker is used to containerize the SimpleEshop application and its dependencies,
 docker-compose up -d
 
 # Build the Docker image manually
-docker build -t niroth36/simpleeshop:latest .
+docker build -t <YOUR_DOCKERHUB_USERNAME>/simpleeshop:latest .
 
 # Push the image to Docker Hub
-docker push niroth36/simpleeshop:latest
+docker push <YOUR_DOCKERHUB_USERNAME>/simpleeshop:latest
 ```
 
 ## Jenkins (CI)
@@ -164,7 +164,7 @@ Jenkins is an open-source automation server that enables developers to build, te
 Jenkins is used for continuous integration, specifically:
 - Building the Docker image
 - Pushing the image to Docker Hub
-- Updating the Kubernetes manifests in the GitOps repository
+- Updating the Kubernetes manifests in the GitOps directory
 
 ### Key Files and Directories
 - `Jenkinsfile`: Defines the CI pipeline
@@ -189,7 +189,7 @@ ArgoCD is a declarative, GitOps continuous delivery tool for Kubernetes. It auto
 
 ### How It's Used in SimpleEshop
 ArgoCD is used for continuous deployment, specifically:
-- Monitoring the GitOps repository for changes
+- Monitoring the GitOps directory for changes
 - Automatically syncing the Kubernetes manifests with the cluster
 - Providing a UI for visualizing the deployment status
 

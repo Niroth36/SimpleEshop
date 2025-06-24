@@ -25,7 +25,7 @@ Before you begin, ensure you have the following:
 - Git installed locally
 - SSH key pair for VM access
 - Docker Hub account (for pushing images)
-- GitHub account (for GitOps repository)
+- GitHub account
 
 ## Deployment Overview
 
@@ -288,34 +288,23 @@ The Ansible playbooks should have installed Jenkins and ArgoCD, but let's verify
 
 Now you'll deploy the SimpleEshop application using the GitOps workflow.
 
-### 5.1 Create GitOps Repository
+### 5.1 Verify GitOps Directory
 
-1. Create a new GitHub repository called `SimpleEshop-gitops`
-
-2. Clone the repository locally:
+1. The SimpleEshop repository already contains a GitOps directory with all the necessary Kubernetes manifests:
    ```bash
-   git clone https://github.com/YourUsername/SimpleEshop-gitops.git
-   cd SimpleEshop-gitops
+   ls -la gitops
    ```
 
-3. Create the directory structure:
+2. Verify the directory structure:
    ```bash
-   mkdir -p kubernetes/applications kubernetes/database kubernetes/namespaces
+   ls -la gitops/apps
+   ls -la gitops/infrastructure
    ```
 
-4. Copy the Kubernetes manifests from the main repository:
-   ```bash
-   cp ../SimpleEshop/kubernetes/applications/* kubernetes/applications/
-   cp ../SimpleEshop/kubernetes/database/* kubernetes/database/
-   cp ../SimpleEshop/kubernetes/namespaces/* kubernetes/namespaces/
-   ```
-
-5. Commit and push the changes:
-   ```bash
-   git add .
-   git commit -m "Initial commit with Kubernetes manifests"
-   git push origin main
-   ```
+3. The GitOps directory contains:
+   - Application manifests in `gitops/apps/simpleeshop/manifests/`
+   - Database manifests in `gitops/apps/database/manifests/`
+   - Infrastructure manifests in `gitops/infrastructure/namespaces/`
 
 ### 5.2 Trigger the CI/CD Pipeline
 
@@ -420,7 +409,7 @@ Now let's verify that the application is deployed correctly.
   - Ensure Docker is installed on the Jenkins agent
 
 - **Error: ArgoCD sync fails**
-  - Check the GitOps repository URL
+  - Check the GitOps directory path in the repository
   - Verify the Kubernetes manifests
   - Check ArgoCD logs: `sg microk8s -c "microk8s kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server"`
 

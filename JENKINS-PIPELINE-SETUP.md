@@ -9,7 +9,7 @@ Before you begin, ensure you have:
 1. Jenkins installed and running (accessible at http://4.210.149.226:30080)
 2. Docker Hub account
 3. GitHub repository for your SimpleEshop project
-4. The Jenkinsfile.webapp file in your repository (already provided)
+4. The Jenkinsfile file in your repository (already provided)
 
 ## Step 1: Configure Jenkins Credentials
 
@@ -36,7 +36,7 @@ First, you need to set up the necessary credentials in Jenkins:
 
 ## Step 2: Create a Jenkins Pipeline Job
 
-Now, create a new pipeline job that will use your Jenkinsfile.webapp:
+Now, create a new pipeline job that will use your Jenkinsfile:
 
 1. From the Jenkins dashboard, click "New Item"
 2. Enter a name for your job (e.g., "SimpleEshop-WebApp")
@@ -51,7 +51,7 @@ Now, create a new pipeline job that will use your Jenkinsfile.webapp:
      - If you haven't added credentials yet, click "Add" > "Jenkins" and add your GitHub credentials
      - Use your GitHub username and personal access token (with repo permissions)
    - Specify the branch (e.g., "main")
-   - Set the Script Path to "Jenkinsfile.webapp"
+   - Set the Script Path to "Jenkinsfile"
    - Click "Save"
 
 > **Note**: If you encounter a "403 Write access to repository not granted" error, you need to ensure your GitHub credentials have the correct permissions. See the "Troubleshooting GitHub Authentication" section below for solutions.
@@ -125,8 +125,7 @@ After the pipeline completes:
    - Verify that a new tag with the build number exists
 
 2. Check that the GitOps repository was updated:
-   - Go to https://github.com/Niroth36/SimpleEshop-gitops
-   - Check the commit history to see if a new commit was made by Jenkins
+   - Check the commit history of the main repository to see if a new commit was made by Jenkins to update the GitOps directory
 
 3. Verify the deployment in ArgoCD:
    - Access ArgoCD at https://4.210.149.226:30443
@@ -239,18 +238,18 @@ For a more secure approach, you can use SSH keys instead of HTTPS:
    - Click "Save"
 
 6. **Update your Jenkinsfile to use SSH** (optional):
-   - Open your Jenkinsfile.webapp
+   - Open your Jenkinsfile
    - Change any HTTPS Git operations to use SSH:
      ```groovy
      // Change this:
-     sh "git clone https://github.com/Niroth36/SimpleEshop-gitops.git"
+     sh "git clone https://github.com/Niroth36/SimpleEshop.git"
 
      // To this:
-     sh "git clone git@github.com:Niroth36/SimpleEshop-gitops.git"
+     sh "git clone git@github.com:Niroth36/SimpleEshop.git"
 
      // And change this:
      withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-         sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop-gitops.git main"
+         sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git main"
      }
 
      // To this:
@@ -283,10 +282,10 @@ For more detailed instructions on setting up SSH authentication, see [JENKINS-SS
 
 1. **Credentials Issues**: Verify that the GitHub credentials are correct.
 
-2. **Repository Access**: Ensure that the GitHub user has write access to the GitOps repository.
+2. **Repository Access**: Ensure that the GitHub user has write access to the repository.
 
 ## Conclusion
 
 You have successfully set up a Jenkins pipeline for your SimpleEshop web application. This pipeline automatically builds, tests, and deploys your application whenever changes are pushed to the web-app directory in your GitHub repository.
 
-This setup follows GitOps best practices, with Jenkins handling the CI part (building and testing) and ArgoCD handling the CD part (deployment to Kubernetes). The separation of concerns ensures that your deployment is always in sync with the desired state defined in your GitOps repository.
+This setup follows GitOps best practices, with Jenkins handling the CI part (building and testing) and ArgoCD handling the CD part (deployment to Kubernetes). The separation of concerns ensures that your deployment is always in sync with the desired state defined in your GitOps directory.

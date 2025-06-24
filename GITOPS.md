@@ -6,39 +6,38 @@ This document describes the GitOps workflow for SimpleEshop using Jenkins for CI
 
 The GitOps workflow consists of the following components:
 
-1. **Source Code Repository**: Contains the application source code and Jenkinsfile
-2. **GitOps Repository**: Contains the Kubernetes manifests for deploying the application
-3. **Jenkins**: Builds the Docker image and updates the GitOps repository
-4. **ArgoCD**: Deploys the application to the Kubernetes cluster based on the GitOps repository
+1. **Source Code Repository**: Contains the application source code, Jenkinsfile, and GitOps directory
+2. **Jenkins**: Builds the Docker image and updates the GitOps directory
+3. **ArgoCD**: Deploys the application to the Kubernetes cluster based on the GitOps directory
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Source Code │     │   Jenkins   │     │  Docker Hub │
-│  Repository  │────►│   (CI)      │────►│  Registry   │
-└─────────────┘     └──────┬──────┘     └─────────────┘
-                           │                    ▲
-                           │                    │
-                           ▼                    │
-                    ┌─────────────┐             │
-                    │   GitOps    │             │
-                    │  Repository  │            │
-                    └──────┬──────┘             │
-                           │                    │
-                           │                    │
-                           ▼                    │
-                    ┌─────────────┐             │
-                    │   ArgoCD    │             │
-                    │    (CD)     │             │
-                    └──────┬──────┘             │
-                           │                    │
-                           │                    │
-                           ▼                    │
-                    ┌─────────────┐             │
-                    │ Kubernetes  │             │
-                    │   Cluster   │─────────────┘
-                    └─────────────┘
+┌─────────────────────────────┐     ┌─────────────┐
+│  Source Code Repository     │     │  Docker Hub │
+│  (with GitOps Directory)    │     │  Registry   │
+└───────────┬─────────────────┘     └─────────────┘
+            │                              ▲
+            │                              │
+            ▼                              │
+    ┌───────────────┐                      │
+    │   Jenkins     │                      │
+    │   (CI)        │──────────────────────┘
+    └───────┬───────┘
+            │
+            │
+            ▼
+    ┌───────────────┐
+    │   ArgoCD      │
+    │   (CD)        │
+    └───────┬───────┘
+            │
+            │
+            ▼
+    ┌───────────────┐
+    │  Kubernetes   │
+    │   Cluster     │
+    └───────────────┘
 ```
 
 ## Workflow
@@ -47,8 +46,8 @@ The GitOps workflow consists of the following components:
 2. Jenkins pipeline is triggered and:
    - Builds the Docker image
    - Pushes the Docker image to Docker Hub
-   - Updates the image tag in the GitOps repository
-3. ArgoCD detects the changes in the GitOps repository
+   - Updates the image tag in the GitOps directory
+3. ArgoCD detects the changes in the GitOps directory
 4. ArgoCD automatically syncs the changes to the Kubernetes cluster
 
 ## Setup
@@ -58,8 +57,7 @@ The GitOps workflow consists of the following components:
 - Kubernetes cluster with MicroK8s
 - Jenkins installed in the cluster
 - ArgoCD installed in the cluster
-- GitHub repository for the application source code
-- GitHub repository for the GitOps configuration (e.g., SimpleEshop-gitops)
+- GitHub repository for the SimpleEshop application (which includes the GitOps directory)
 
 ### Jenkins Configuration
 
@@ -82,32 +80,34 @@ The GitOps workflow consists of the following components:
 4. If not, create a new application with the following settings:
    - Name: simpleeshop
    - Project: default
-   - Repository URL: https://github.com/Niroth36/SimpleEshop-gitops.git
-   - Path: kubernetes
+   - Repository URL: https://github.com/Niroth36/SimpleEshop.git
+   - Path: gitops
    - Destination: https://kubernetes.default.svc
    - Namespace: simpleeshop
    - Sync Policy: Automated
 
-## GitOps Repository Structure
+## GitOps Directory Structure
 
-The GitOps repository should have the following structure:
+The GitOps directory in the main repository has the following structure:
 
 ```
-SimpleEshop-gitops/
-├── kubernetes/
-│   ├── applications/
-│   │   ├── simpleeshop-configmap.yaml
-│   │   ├── simpleeshop-deployment.yaml
-│   │   └── simpleeshop-service.yaml
+gitops/
+├── apps/
 │   ├── database/
-│   │   ├── postgres-deployment.yaml
-│   │   ├── postgres-init-configmap.yaml
-│   │   ├── postgres-init-job.yaml
-│   │   ├── postgres-pvc.yaml
-│   │   └── postgres-service.yaml
-│   └── namespaces/
-│       └── simpleeshop-namespace.yaml
-└── README.md
+│   │   └── manifests/
+│   │       ├── postgres-deployment.yaml
+│   │       ├── postgres-init-configmap.yaml
+│   │       ├── postgres-init-job.yaml
+│   │       ├── postgres-pvc.yaml
+│   │       └── postgres-service.yaml
+│   └── simpleeshop/
+│       └── manifests/
+│           ├── simpleeshop-configmap.yaml
+│           ├── simpleeshop-deployment.yaml
+│           └── simpleeshop-service.yaml
+└── infrastructure/
+    └── namespaces/
+        └── simpleeshop-namespace.yaml
 ```
 
 ## CI/CD Pipeline
@@ -117,13 +117,13 @@ The CI/CD pipeline is defined in the Jenkinsfile and consists of the following s
 1. **Checkout**: Checks out the source code from the repository
 2. **Build Docker Image**: Builds the Docker image and tags it with the build number and latest
 3. **Push to Docker Hub**: Pushes the Docker image to Docker Hub
-4. **Update Kubernetes Manifests**: Updates the image tag in the GitOps repository
+4. **Update Kubernetes Manifests**: Updates the image tag in the GitOps directory
 
 ## Security Considerations
 
 - Sensitive information like passwords should be stored in Kubernetes Secrets
 - Jenkins credentials should be properly secured
-- ArgoCD should use HTTPS for the GitOps repository
+- ArgoCD should use HTTPS for the repository
 - Consider using private Docker repositories for production environments
 
 ## Troubleshooting
@@ -138,7 +138,7 @@ The CI/CD pipeline is defined in the Jenkinsfile and consists of the following s
 ### ArgoCD Sync Fails
 
 1. Check the ArgoCD logs for errors
-2. Verify that the GitOps repository is accessible
+2. Verify that the repository is accessible
 3. Ensure that the Kubernetes manifests are valid
 4. Check the ArgoCD application status for specific error messages
 
@@ -169,7 +169,7 @@ git push origin main
    - Build a Docker image from your code
    - Tag it with the build number and 'latest'
    - Push the image to Docker Hub (niroth36/simpleeshop)
-   - Update the deployment manifest in the GitOps repository
+   - Update the deployment manifest in the GitOps directory
 
 ### 3. Verify the Deployment in ArgoCD
 
@@ -208,4 +208,4 @@ To publish a new version of your application:
 
 ## Conclusion
 
-This GitOps workflow provides a robust and automated way to deploy SimpleEshop to a Kubernetes cluster. By separating the CI and CD processes, it ensures that the deployment is always in sync with the desired state defined in the GitOps repository.
+This GitOps workflow provides a robust and automated way to deploy SimpleEshop to a Kubernetes cluster. By separating the CI and CD processes, it ensures that the deployment is always in sync with the desired state defined in the GitOps directory.

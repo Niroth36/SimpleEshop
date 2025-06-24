@@ -5,7 +5,7 @@
 You're encountering the following error when running your Jenkins pipeline:
 
 ```
-hudson.plugins.git.GitException: Command "git config remote.origin.url https://github.com/Niroth36/SimpleEshop.git" returned status code 128:
+hudson.plugins.git.GitException: Command "git config remote.origin.url https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git" returned status code 128:
 stdout: 
 stderr: fatal: not in a git directory
 ```
@@ -42,7 +42,7 @@ node {
         extensions: [],
         submoduleCfg: [],
         userRemoteConfigs: [[
-            url: 'https://github.com/Niroth36/SimpleEshop.git',
+            url: 'https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git',
             credentialsId: 'github-credentials'  // Use your GitHub credentials ID
         ]]
     ])
