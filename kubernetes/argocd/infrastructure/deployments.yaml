@@ -8,6 +8,7 @@ metadata:
   name: argocd-redis
   namespace: argocd
 spec:
+  revisionHistoryLimit: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-redis
