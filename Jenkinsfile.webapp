@@ -1,3 +1,10 @@
+   // Jenkinsfile for building and deploying the SimpleEshop web application
+   // This pipeline uses Kubernetes to run the build in containers with Kaniko for Docker image building
+   // Resource limits and requests have been added to prevent pod scheduling issues
+   // If pods are stuck in "ContainerCreating" state, check:
+   // 1. Available resources in the cluster: kubectl describe nodes
+   // 2. Pod events: kubectl describe pod <pod-name> -n jenkins
+   // 3. Container logs: kubectl logs <pod-name> -c <container-name> -n jenkins
    pipeline {
        agent {
            kubernetes {
@@ -5,28 +12,75 @@
                    apiVersion: v1
                    kind: Pod
                    spec:
+                     # Add node selector to target specific nodes if needed
+                     # nodeSelector:
+                     #   kubernetes.io/os: linux
+
+                     # Add tolerations if needed
+                     # tolerations:
+                     # - key: "key"
+                     #   operator: "Equal"
+                     #   value: "value"
+                     #   effect: "NoSchedule"
+
                      containers:
                      - name: jnlp
                        image: jenkins/inbound-agent:latest
+                       imagePullPolicy: IfNotPresent
                        args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+                       resources:
+                         requests:
+                           memory: "256Mi"
+                           cpu: "100m"
+                         limits:
+                           memory: "512Mi"
+                           cpu: "500m"
+
                      - name: node
                        image: node:18-alpine
+                       imagePullPolicy: IfNotPresent
                        command:
                        - cat
                        tty: true
+                       resources:
+                         requests:
+                           memory: "256Mi"
+                           cpu: "100m"
+                         limits:
+                           memory: "1Gi"
+                           cpu: "500m"
+
                      - name: kaniko
                        image: gcr.io/kaniko-project/executor:debug
+                       imagePullPolicy: IfNotPresent
                        command:
                        - cat
                        tty: true
+                       resources:
+                         requests:
+                           memory: "512Mi"
+                           cpu: "200m"
+                         limits:
+                           memory: "2Gi"
+                           cpu: "1000m"
                        volumeMounts:
                        - name: docker-config
                          mountPath: /kaniko/.docker
+
                      - name: git
                        image: alpine/git:latest
+                       imagePullPolicy: IfNotPresent
                        command:
                        - cat
                        tty: true
+                       resources:
+                         requests:
+                           memory: "128Mi"
+                           cpu: "50m"
+                         limits:
+                           memory: "256Mi"
+                           cpu: "200m"
+
                      volumes:
                      - name: docker-config
                        secret:
@@ -35,6 +89,7 @@
                          - key: .dockerconfigjson
                            path: config.json
                """
+               defaultContainer 'jnlp'
            }
        }
 
@@ -225,7 +280,16 @@
                }
            }
            failure {
-               echo "Web App Pipeline failed!"
+               echo """
+               FAILED: Web App Pipeline failed!
+
+               Check the logs for more details. Common issues:
+               - Pod scheduling issues (resource constraints)
+               - Image pull failures
+               - Secret mounting problems
+
+               Build: ${BUILD_NUMBER} | Commit: ${env.IMAGE_TAG ?: 'unknown'}
+               """
            }
        }
    }
