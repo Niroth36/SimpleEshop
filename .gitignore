@@ -6,9 +6,12 @@ yarn-error.log
 # Terraform
 *.tfstate
 *.tfstate.*
+terraform.tfstate
+terraform.tfstate.backup
 .terraform/
 .terraform.lock.hcl
 *.tfvars
+terraform.vars
 *.tfplan
 crash.log
 override.tf
@@ -17,6 +20,12 @@ override.tf.json
 *_override.tf.json
 terraform.rc
 infrastructure/azure/.terraform
+infrastructure/azure/terraform.tfstate
+infrastructure/azure/terraform.tfstate.backup
+infrastructure/azure/terraform.vars
+# Terraform production files
+**/production/**/variables.tf
+infrastructure/azure/variables.tf
 
 # Environment variables and secrets
 .env
@@ -36,6 +45,9 @@ infrastructure/azure/.terraform
 id_rsa*
 *.ppk
 .vault_pass
+*ssh_config*
+*ssh_config.tpl
+infrastructure/azure/ssh_config.tpl
 credentials.json
 *_credentials.json
 *_key.json

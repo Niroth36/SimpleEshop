@@ -1,0 +1,93 @@
+# variables.tf.template - Template for Terraform variable definitions
+# Copy this file to variables.tf and adjust as needed
+
+# Azure Authentication Variables
+variable "subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+  # Don't set default values for sensitive variables
+}
+
+variable "tenant_id" {
+  description = "Azure tenant ID"
+  type        = string
+}
+
+variable "client_id" {
+  description = "Azure client ID"
+  type        = string
+}
+
+variable "client_secret" {
+  description = "Azure client secret"
+  type        = string
+  sensitive   = true  # Mark as sensitive to hide in logs
+}
+
+# Resource Configuration
+variable "resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
+  default     = "simpleeshop-rg"
+}
+
+variable "location" {
+  description = "Primary Azure region for resources"
+  type        = string
+  default     = "eastus"
+}
+
+variable "secondary_location" {
+  description = "Secondary Azure region for multi-region setup"
+  type        = string
+  default     = "westus"
+}
+
+# VM Configuration
+variable "vm_size" {
+  description = "Size of the Azure VM"
+  type        = string
+  default     = "Standard_B2s"
+}
+
+variable "admin_username" {
+  description = "Admin username for VMs"
+  type        = string
+  default     = "adminuser"
+}
+
+variable "admin_password" {
+  description = "Admin password for VMs"
+  type        = string
+  sensitive   = true
+  # No default value for sensitive variables
+  # Use environment variables: TF_VAR_admin_password
+}
+
+# Network Configuration
+variable "vnet_address_space" {
+  description = "Address space for the virtual network"
+  type        = list(string)
+  default     = ["10.0.0.0/16"]
+}
+
+variable "subnet_prefix" {
+  description = "Address prefix for the subnet"
+  type        = list(string)
+  default     = ["10.0.1.0/24"]
+}
+
+# Tags
+variable "tags" {
+  description = "Tags to apply to all resources"
+  type        = map(string)
+  default = {
+    environment = "production"
+    project     = "simpleeshop"
+  }
+}
+
+# IMPORTANT: For production environments, consider:
+# 1. Using environment variables for sensitive values
+# 2. Using Azure Key Vault for secrets
+# 3. Using a remote backend for state storage
