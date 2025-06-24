@@ -1,3 +1,4 @@
+# Fixed Dockerfile for SimpleEshop x86_64 production deployment
 FROM node:18-alpine
 
 # Install system dependencies
@@ -14,19 +15,47 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Copy package files first for better caching
 COPY package*.json ./
+
+# Install root dependencies if package.json exists (use npm install instead of ci for flexibility)
+RUN if [ -f package.json ]; then \
+        npm install --only=production && npm cache clean --force; \
+    fi
+
+# Copy web-app server package files
 COPY web-app/server/package*.json ./web-app/server/
 
-# Install dependencies
-RUN if [ -f package.json ]; then npm ci --only=production && npm cache clean --force; fi
-RUN if [ -f web-app/server/package.json ]; then cd web-app/server && npm ci --only=production && npm cache clean --force; fi
+# Install server dependencies (use npm install to handle lock file mismatches)
+RUN if [ -f web-app/server/package.json ]; then \
+        cd web-app/server && \
+        npm install --only=production && \
+        npm cache clean --force; \
+    fi
 
 # Copy application code
 COPY web-app/ ./web-app/
 COPY database/ ./database/
 
-# Verify the server file exists
-RUN ls -la web-app/server/ && \
-    test -f web-app/server/server_postgresql.js
+# Verify the server file exists and show what we have
+RUN echo "📂 Application structure:" && \
+    ls -la web-app/server/ && \
+    echo "🔍 Available server files:" && \
+    find web-app/server -name "*.js" | head -10
+
+# Determine the main server file
+RUN if [ -f web-app/server/server_postgresql.js ]; then \
+        echo "web-app/server/server_postgresql.js" > /app/server_file.txt; \
+    elif [ -f web-app/server/server.js ]; then \
+        echo "web-app/server/server.js" > /app/server_file.txt; \
+    elif [ -f web-app/server/app.js ]; then \
+        echo "web-app/server/app.js" > /app/server_file.txt; \
+    elif [ -f web-app/server/index.js ]; then \
+        echo "web-app/server/index.js" > /app/server_file.txt; \
+    else \
+        echo "❌ No server entry point found!" && \
+        find . -name "*.js" -path "./web-app/*" | head -10 && \
+        exit 1; \
+    fi && \
+    echo "📍 Server entry point: $(cat /app/server_file.txt)"
 
 # Set proper ownership
 RUN chown -R nextjs:nodejs /app
@@ -41,5 +70,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Expose port
 EXPOSE 3000
 
-# Start application
-CMD ["node", "web-app/server/server_postgresql.js"]
+# Dynamic start command
+CMD ["sh", "-c", "exec node $(cat /app/server_file.txt)"]
