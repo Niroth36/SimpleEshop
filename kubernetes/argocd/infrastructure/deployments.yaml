@@ -40,6 +40,7 @@ metadata:
   name: argocd-repo-server
   namespace: argocd
 spec:
+  revisionHistoryLimit: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
@@ -127,6 +128,7 @@ metadata:
   name: argocd-server
   namespace: argocd
 spec:
+  revisionHistoryLimit: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-server
@@ -240,6 +242,7 @@ metadata:
   name: argocd-application-controller
   namespace: argocd
 spec:
+  revisionHistoryLimit: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
