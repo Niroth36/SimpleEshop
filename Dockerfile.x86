@@ -1,19 +1,6 @@
-# Multi-stage build for x86_64 production deployment using Alpine
-FROM node:18-alpine AS builder
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY web-app/server/package*.json ./
-
-# Install dependencies (including dev dependencies for building)
-RUN npm ci --include=dev && npm cache clean --force
-
-# Production image
 FROM node:18-alpine
 
-# Install system dependencies for production (Alpine packages)
+# Install system dependencies
 RUN apk add --no-cache \
     curl \
     ca-certificates
@@ -21,21 +8,23 @@ RUN apk add --no-cache \
 # Create app directory
 WORKDIR /app
 
-# Create non-root user for security (Alpine way)
+# Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001 -G nodejs
 
-# Copy package files
-COPY web-app/server/package*.json ./
+# Copy package files first for better caching
+COPY package*.json ./
+COPY web-app/server/package*.json ./web-app/server/
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies
+RUN if [ -f package.json ]; then npm ci --only=production && npm cache clean --force; fi
+RUN if [ -f web-app/server/package.json ]; then cd web-app/server && npm ci --only=production && npm cache clean --force; fi
 
-# Copy application code based on your actual structure
+# Copy application code
 COPY web-app/ ./web-app/
 COPY database/ ./database/
 
-# Ensure the server file exists and is executable
+# Verify the server file exists
 RUN ls -la web-app/server/ && \
     test -f web-app/server/server_postgresql.js
 
