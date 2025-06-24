@@ -1,0 +1,119 @@
+   pipeline {
+       agent any
+
+       environment {
+           DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
+           DOCKER_IMAGE = 'niroth36/simpleeshop'
+           DOCKER_TAG = "${env.BUILD_NUMBER}"
+       }
+
+       stages {
+           stage('Checkout') {
+               steps {
+                   checkout scm
+               }
+           }
+
+           stage('Check for Web App Changes') {
+               steps {
+                   script {
+                       // Get the list of changed files
+                       def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD', returnStdout: true).trim()
+
+                       // Check if any files in the web-app directory have changed
+                       def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" || echo "false"', returnStdout: true).trim()
+
+                       if (webAppChanged == 'false') {
+                           echo "No changes detected in web-app directory. Skipping build."
+                           currentBuild.result = 'SUCCESS'
+                           return
+                       }
+
+                       echo "Changes detected in web-app directory. Proceeding with build."
+                   }
+               }
+           }
+
+           stage('Install Dependencies') {
+               steps {
+                   dir('web-app/server') {
+                       sh 'npm ci'
+                   }
+               }
+           }
+
+           stage('Lint') {
+               steps {
+                   dir('web-app/server') {
+                       // Add linting if you have ESLint configured
+                       sh 'echo "Linting would run here if configured"'
+                   }
+               }
+           }
+
+           stage('Test') {
+               steps {
+                   dir('web-app/server') {
+                       // Run tests if you have them configured
+                       sh 'echo "Tests would run here if configured"'
+
+                       // Run the integration tests for email services
+                       sh 'cd ../../ && ./test-integration.sh'
+                   }
+               }
+           }
+
+           stage('Build Docker Image') {
+               steps {
+                   sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                   sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
+               }
+           }
+
+           stage('Push to Docker Hub') {
+               steps {
+                   sh "echo ${DOCKER_HUB_CREDS_PSW} | docker login -u ${DOCKER_HUB_CREDS_USR} --password-stdin"
+                   sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                   sh "docker push ${DOCKER_IMAGE}:latest"
+               }
+           }
+
+           stage('Update Kubernetes Manifests') {
+               steps {
+                   script {
+                       // Clone the GitOps repository
+                       sh "git clone https://github.com/Niroth36/SimpleEshop-gitops.git"
+
+                       // Update the image tags in the deployment manifests
+                       dir('SimpleEshop-gitops') {
+                           // Update main app image
+                           sh "sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${DOCKER_IMAGE}:${DOCKER_TAG}|' kubernetes/applications/simpleeshop-deployment.yaml"
+
+                           // Commit and push the changes
+                           sh "git config user.email 'jenkins@example.com'"
+                           sh "git config user.name 'Jenkins CI'"
+                           sh "git add kubernetes/applications/simpleeshop-deployment.yaml"
+                           sh "git commit -m 'Update web-app image tag to ${DOCKER_TAG}'"
+
+                           withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                               sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop-gitops.git main"
+                           }
+                       }
+                   }
+               }
+           }
+       }
+
+       post {
+           always {
+               sh "docker logout"
+               cleanWs()
+           }
+           success {
+               echo "Web App Pipeline completed successfully!"
+           }
+           failure {
+               echo "Web App Pipeline failed!"
+           }
+       }
+   }
