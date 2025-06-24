@@ -20,6 +20,7 @@ spec:
     automated:
       prune: true
       selfHeal: true
+      propagationPolicy: Background
     syncOptions:
     - CreateNamespace=true
     - ApplyOutOfSyncOnly=true
