@@ -1,6 +1,16 @@
    // Jenkinsfile for building and deploying the SimpleEshop web application
    // This pipeline now runs directly on the Jenkins controller to bypass Kubernetes pod scheduling issues
    // This is a temporary solution until the pod scheduling issues can be resolved
+   //
+   // IMPORTANT: Recent changes to fix Kaniko pod issues:
+   // 1. Changed Kaniko image from slim to debug version (more utilities available)
+   // 2. Changed command from 'cat' to '/busybox/sh' (should be available in debug image)
+   // 3. Increased resource requests and limits (debug image needs more resources)
+   // 4. Added priorityClassName for higher scheduling priority
+   //
+   // Note: If the priorityClassName "high-priority" doesn't exist in your cluster,
+   // you'll need to create it or comment out that line. See JENKINS-POD-SCHEDULING-GUIDE.md
+   // for instructions on creating the PriorityClass.
    pipeline {
        // Run directly on the Jenkins controller instead of using Kubernetes pods
        agent any
@@ -127,6 +137,9 @@
                             # Print debugging information
                             restartPolicy: Never
 
+                            # Add priority class to increase scheduling priority
+                            priorityClassName: "high-priority"
+
                             # Add node affinity to prefer nodes with more resources if available
                             affinity:
                               nodeAffinity:
@@ -147,18 +160,18 @@
                             # Further reduce resource requests to absolute minimum
                             containers:
                             - name: kaniko
-                              image: gcr.io/kaniko-project/executor:slim
+                              image: gcr.io/kaniko-project/executor:debug
                               imagePullPolicy: Always
                               command:
-                              - /kaniko/executor
+                              - /busybox/sh
                               tty: true
                               resources:
                                 requests:
-                                  memory: "8Mi"
-                                  cpu: "1m"
+                                  memory: "64Mi"
+                                  cpu: "10m"
                                 limits:
-                                  memory: "256Mi"
-                                  cpu: "100m"
+                                  memory: "512Mi"
+                                  cpu: "200m"
                               volumeMounts:
                               - name: docker-config
                                 mountPath: /kaniko/.docker
