@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: simpleeshop
-        image: niroth36/simpleeshop:47-9e44faf
+        image: niroth36/simpleeshop:49-d2259db
         imagePullPolicy: Always
         envFrom:
         - configMapRef:
