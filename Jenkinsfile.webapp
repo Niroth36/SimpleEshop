@@ -6,10 +6,10 @@
    // 1. Changed Kaniko image from slim to debug version (more utilities available)
    // 2. Changed command from 'cat' to '/busybox/sh' (should be available in debug image)
    // 3. Increased resource requests and limits (debug image needs more resources)
-   // 4. Added priorityClassName for higher scheduling priority
+   // 4. Commented out priorityClassName to avoid errors when the PriorityClass doesn't exist
    //
-   // Note: If the priorityClassName "high-priority" doesn't exist in your cluster,
-   // you'll need to create it or comment out that line. See JENKINS-POD-SCHEDULING-GUIDE.md
+   // Note: If you want to use priorityClassName for higher scheduling priority,
+   // you'll need to create the "high-priority" PriorityClass first. See JENKINS-POD-SCHEDULING-GUIDE.md
    // for instructions on creating the PriorityClass.
    pipeline {
        // Run directly on the Jenkins controller instead of using Kubernetes pods
@@ -138,7 +138,7 @@
                             restartPolicy: Never
 
                             # Add priority class to increase scheduling priority
-                            priorityClassName: "high-priority"
+                            # priorityClassName: "high-priority"  # Commented out - create this PriorityClass first or keep commented
 
                             # Add node affinity to prefer nodes with more resources if available
                             affinity:
