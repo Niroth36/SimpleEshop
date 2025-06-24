@@ -1,102 +1,9 @@
    // Jenkinsfile for building and deploying the SimpleEshop web application
-   // This pipeline uses Kubernetes to run the build in containers with Kaniko for Docker image building
-   // Resource limits and requests have been added to prevent pod scheduling issues
-   // If pods are stuck in "ContainerCreating" state, check:
-   // 1. Available resources in the cluster: kubectl describe nodes
-   // 2. Pod events: kubectl describe pod <pod-name> -n jenkins
-   // 3. Container logs: kubectl logs <pod-name> -c <container-name> -n jenkins
+   // This pipeline now runs directly on the Jenkins controller to bypass Kubernetes pod scheduling issues
+   // This is a temporary solution until the pod scheduling issues can be resolved
    pipeline {
-       agent {
-           kubernetes {
-               yaml """
-                   apiVersion: v1
-                   kind: Pod
-                   spec:
-                     # Node selector to target Linux nodes
-                     # Commented out to allow scheduling on any available node
-                     # nodeSelector:
-                     #   kubernetes.io/os: linux
-
-                     # Tolerations to allow scheduling on tainted nodes
-                     tolerations:
-                     - key: "node-role.kubernetes.io/master"
-                       operator: "Exists"
-                       effect: "NoSchedule"
-                     - key: "node-role.kubernetes.io/control-plane"
-                       operator: "Exists"
-                       effect: "NoSchedule"
-                     # Toleration for any taint to ensure pod can be scheduled anywhere
-                     - operator: "Exists"
-
-                     containers:
-                     - name: jnlp
-                       image: jenkins/inbound-agent:latest
-                       imagePullPolicy: IfNotPresent
-                       args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-                       resources:
-                         requests:
-                           memory: "64Mi"
-                           cpu: "10m"
-                         limits:
-                           memory: "512Mi"
-                           cpu: "500m"
-
-                     - name: node
-                       image: node:18-alpine
-                       imagePullPolicy: IfNotPresent
-                       command:
-                       - cat
-                       tty: true
-                       resources:
-                         requests:
-                           memory: "64Mi"
-                           cpu: "10m"
-                         limits:
-                           memory: "1Gi"
-                           cpu: "500m"
-
-                     - name: kaniko
-                       image: gcr.io/kaniko-project/executor:debug
-                       imagePullPolicy: IfNotPresent
-                       command:
-                       - cat
-                       tty: true
-                       resources:
-                         requests:
-                           memory: "128Mi"
-                           cpu: "50m"
-                         limits:
-                           memory: "2Gi"
-                           cpu: "1000m"
-                       volumeMounts:
-                       - name: docker-config
-                         mountPath: /kaniko/.docker
-
-                     - name: git
-                       image: alpine/git:latest
-                       imagePullPolicy: IfNotPresent
-                       command:
-                       - cat
-                       tty: true
-                       resources:
-                         requests:
-                           memory: "32Mi"
-                           cpu: "10m"
-                         limits:
-                           memory: "256Mi"
-                           cpu: "200m"
-
-                     volumes:
-                     - name: docker-config
-                       secret:
-                         secretName: docker-hub-secret
-                         items:
-                         - key: .dockerconfigjson
-                           path: config.json
-               """
-               defaultContainer 'jnlp'
-           }
-       }
+       // Run directly on the Jenkins controller instead of using Kubernetes pods
+       agent any
 
        environment {
            DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
@@ -107,42 +14,43 @@
        stages {
            stage('Checkout') {
                steps {
-                   container('git') {
-                       checkout scm
-                       script {
-                           env.IMAGE_TAG = sh(
-                               script: "git rev-parse --short HEAD",
-                               returnStdout: true
-                           ).trim()
-                           env.BUILD_NUMBER_TAG = "${env.BUILD_NUMBER}-${env.IMAGE_TAG}"
-                           env.FULL_IMAGE_TAG = "${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
-                       }
-                       echo "Building: ${env.FULL_IMAGE_TAG}"
+                   // Print debugging information
+                   echo "Starting pipeline on Jenkins controller"
+                   echo "Running on node: ${env.NODE_NAME}"
+
+                   // Proceed with checkout
+                   checkout scm
+                   script {
+                       env.IMAGE_TAG = sh(
+                           script: "git rev-parse --short HEAD",
+                           returnStdout: true
+                       ).trim()
+                       env.BUILD_NUMBER_TAG = "${env.BUILD_NUMBER}-${env.IMAGE_TAG}"
+                       env.FULL_IMAGE_TAG = "${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
                    }
+                   echo "Building: ${env.FULL_IMAGE_TAG}"
                }
            }
 
            stage('Check for Web App Changes') {
                steps {
-                   container('git') {
-                       script {
-                           // Get the list of changed files
-                           def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD || echo "first-build"', returnStdout: true).trim()
+                   script {
+                       // Get the list of changed files
+                       def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD || echo "first-build"', returnStdout: true).trim()
 
-                           // Check if any files in the web-app directory have changed
-                           def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" && echo "true" || echo "false"', returnStdout: true).trim()
+                       // Check if any files in the web-app directory have changed
+                       def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" && echo "true" || echo "false"', returnStdout: true).trim()
 
-                           if (changedFiles == "first-build") {
-                               echo "First build or no previous commit - proceeding with build"
-                               env.SHOULD_BUILD = "true"
-                           } else if (webAppChanged == "true") {
-                               echo "Changes detected in web-app directory. Proceeding with build."
-                               env.SHOULD_BUILD = "true"
-                           } else {
-                               echo "No changes detected in web-app directory. Skipping build."
-                               env.SHOULD_BUILD = "false"
-                               currentBuild.result = 'SUCCESS'
-                           }
+                       if (changedFiles == "first-build") {
+                           echo "First build or no previous commit - proceeding with build"
+                           env.SHOULD_BUILD = "true"
+                       } else if (webAppChanged == "true") {
+                           echo "Changes detected in web-app directory. Proceeding with build."
+                           env.SHOULD_BUILD = "true"
+                       } else {
+                           echo "No changes detected in web-app directory. Skipping build."
+                           env.SHOULD_BUILD = "false"
+                           currentBuild.result = 'SUCCESS'
                        }
                    }
                }
@@ -153,15 +61,13 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   container('node') {
-                       dir('web-app/server') {
-                           script {
-                               if (!fileExists('package-lock.json')) {
-                                   echo "package-lock.json not found, running npm install to generate it"
-                                   sh 'npm install'
-                               } else {
-                                   sh 'npm ci || npm install'
-                               }
+                   dir('web-app/server') {
+                       script {
+                           if (!fileExists('package-lock.json')) {
+                               echo "package-lock.json not found, running npm install to generate it"
+                               sh 'npm install'
+                           } else {
+                               sh 'npm ci || npm install'
                            }
                        }
                    }
@@ -173,11 +79,9 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   container('node') {
-                       dir('web-app/server') {
-                           // Add linting if you have ESLint configured
-                           sh 'echo "Linting would run here if configured"'
-                       }
+                   dir('web-app/server') {
+                       // Add linting if you have ESLint configured
+                       sh 'echo "Linting would run here if configured"'
                    }
                }
            }
@@ -187,35 +91,33 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   container('node') {
-                       dir('web-app/server') {
-                           // Run tests if you have them configured
-                           sh 'echo "Tests would run here if configured"'
-                       }
+                   dir('web-app/server') {
+                       // Run tests if you have them configured
+                       sh 'echo "Tests would run here if configured"'
                    }
-                   // Skip integration tests that require Docker as they won't work in this environment
-                   echo "Skipping integration tests that require Docker"
+                   // Integration tests can now run directly on the Jenkins controller
+                   echo "Running integration tests"
+                   sh 'cd ../../ && ./test-integration.sh || echo "Integration tests failed but continuing"'
                }
            }
 
-           stage('Build and Push Docker Image with Kaniko') {
+           stage('Build and Push Docker Image') {
                when {
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   container('kaniko') {
-                       script {
-                           sh """
-                               /kaniko/executor \\
-                                   --dockerfile=Dockerfile.x86 \\
-                                   --context=. \\
-                                   --destination=${DOCKER_IMAGE}:${BUILD_NUMBER_TAG} \\
-                                   --destination=${DOCKER_IMAGE}:latest \\
-                                   --cache=true \\
-                                   --cache-ttl=24h
-                           """
-                           echo "Image built and pushed: ${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
-                       }
+                   script {
+                       // Build the Docker image
+                       sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER_TAG} -t ${DOCKER_IMAGE}:latest -f Dockerfile.x86 ."
+
+                       // Login to Docker Hub
+                       sh "echo ${DOCKER_HUB_CREDS_PSW} | docker login -u ${DOCKER_HUB_CREDS_USR} --password-stdin"
+
+                       // Push the Docker images
+                       sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
+                       sh "docker push ${DOCKER_IMAGE}:latest"
+
+                       echo "Image built and pushed: ${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
                    }
                }
            }
@@ -225,41 +127,39 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   container('git') {
-                       script {
-                           withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
-                               sh """
-                                   git config user.email "jenkins@simpleeshop.local"
-                                   git config user.name "Jenkins CI/CD"
+                   script {
+                       withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                           sh """
+                               git config user.email "jenkins@simpleeshop.local"
+                               git config user.name "Jenkins CI/CD"
 
-                                   echo "Looking for deployment manifests..."
-                                   find kubernetes/ -name "*deployment*.yaml" -type f | head -5
+                               echo "Looking for deployment manifests..."
+                               find kubernetes/ -name "*deployment*.yaml" -type f | head -5
 
-                                   if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
-                                       echo "Updating kubernetes/applications/simpleeshop-deployment.yaml"
-                                       sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/applications/simpleeshop-deployment.yaml
-                                       grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
-                                   elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
-                                       echo "Updating kubernetes/simpleeshop-deployment.yaml"
-                                       sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/simpleeshop-deployment.yaml
-                                       grep "image:" kubernetes/simpleeshop-deployment.yaml
-                                   else
-                                       echo "Searching for any deployment file with simpleeshop..."
-                                       find . -name "*simpleeshop*deployment*.yaml" -type f
-                                       find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
-                                   fi
+                               if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
+                                   echo "Updating kubernetes/applications/simpleeshop-deployment.yaml"
+                                   sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/applications/simpleeshop-deployment.yaml
+                                   grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
+                               elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
+                                   echo "Updating kubernetes/simpleeshop-deployment.yaml"
+                                   sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/simpleeshop-deployment.yaml
+                                   grep "image:" kubernetes/simpleeshop-deployment.yaml
+                               else
+                                   echo "Searching for any deployment file with simpleeshop..."
+                                   find . -name "*simpleeshop*deployment*.yaml" -type f
+                                   find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
+                               fi
 
-                                   if git diff --quiet; then
-                                       echo "No changes to commit"
-                                   else
-                                       echo "Changes detected, committing..."
-                                       git add kubernetes/
-                                       git commit -m "Update web-app image to ${BUILD_NUMBER_TAG}"
-                                       git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:main
-                                       echo "Kubernetes manifests updated!"
-                                   fi
-                               """
-                           }
+                               if git diff --quiet; then
+                                   echo "No changes to commit"
+                               else
+                                   echo "Changes detected, committing..."
+                                   git add kubernetes/
+                                   git commit -m "Update web-app image to ${BUILD_NUMBER_TAG}"
+                                   git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:main
+                                   echo "Kubernetes manifests updated!"
+                               fi
+                           """
                        }
                    }
                }
@@ -268,7 +168,9 @@
 
        post {
            always {
-               deleteDir()
+               node('') {
+                   deleteDir()
+               }
            }
            success {
                script {
