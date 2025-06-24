@@ -125,5 +125,3 @@ echo "• View order-confirmation-email logs: docker logs simpleeshop-order-conf
 echo "• Restart welcome-email:        docker compose restart welcome-email"
 echo "• Restart order-confirmation-email: docker compose restart order-confirmation-email"
 
-# Make the script executable
-chmod +x check-system.sh

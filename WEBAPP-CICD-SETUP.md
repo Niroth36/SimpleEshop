@@ -17,13 +17,13 @@ The CI/CD pipeline will:
 - Jenkins and ArgoCD installed on your Kubernetes cluster (as per the JENKINS-ARGOCD-DEPLOYMENT.md guide)
 - GitHub repository for your SimpleEshop application
 - Docker Hub account
-- Access to your control plane VM (IP: 4.210.149.226)
+- Access to your control plane VM
 
 ## Step 1: Create a Jenkins Pipeline for the Web App
 
 1. SSH into your control plane VM:
    ```bash
-   ssh azureuser@4.210.149.226
+   ssh azureuser@<YOUR_CONTROL_PLANE_IP>
    ```
 
 2. Create a new file called `Jenkinsfile.webapp` in your SimpleEshop repository with the following content:
@@ -31,40 +31,40 @@ The CI/CD pipeline will:
    ```groovy
    pipeline {
        agent any
-       
+
        environment {
            DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
-           DOCKER_IMAGE = 'niroth36/simpleeshop'
+           DOCKER_IMAGE = '<YOUR_DOCKERHUB_USERNAME>/simpleeshop'
            DOCKER_TAG = "${env.BUILD_NUMBER}"
        }
-       
+
        stages {
            stage('Checkout') {
                steps {
                    checkout scm
                }
            }
-           
+
            stage('Check for Web App Changes') {
                steps {
                    script {
                        // Get the list of changed files
                        def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD', returnStdout: true).trim()
-                       
+
                        // Check if any files in the web-app directory have changed
                        def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" || echo "false"', returnStdout: true).trim()
-                       
+
                        if (webAppChanged == 'false') {
                            echo "No changes detected in web-app directory. Skipping build."
                            currentBuild.result = 'SUCCESS'
                            return
                        }
-                       
+
                        echo "Changes detected in web-app directory. Proceeding with build."
                    }
                }
            }
-           
+
            stage('Install Dependencies') {
                steps {
                    dir('web-app/server') {
@@ -72,7 +72,7 @@ The CI/CD pipeline will:
                    }
                }
            }
-           
+
            stage('Lint') {
                steps {
                    dir('web-app/server') {
@@ -81,26 +81,26 @@ The CI/CD pipeline will:
                    }
                }
            }
-           
+
            stage('Test') {
                steps {
                    dir('web-app/server') {
                        // Run tests if you have them configured
                        sh 'echo "Tests would run here if configured"'
-                       
+
                        // Run the integration tests for email services
                        sh 'cd ../../ && ./test-integration.sh'
                    }
                }
            }
-           
+
            stage('Build Docker Image') {
                steps {
                    sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                    sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
                }
            }
-           
+
            stage('Push to Docker Hub') {
                steps {
                    sh "echo ${DOCKER_HUB_CREDS_PSW} | docker login -u ${DOCKER_HUB_CREDS_USR} --password-stdin"
@@ -108,33 +108,33 @@ The CI/CD pipeline will:
                    sh "docker push ${DOCKER_IMAGE}:latest"
                }
            }
-           
+
            stage('Update Kubernetes Manifests') {
                steps {
                    script {
                        // Clone the GitOps repository
-                       sh "git clone https://github.com/Niroth36/SimpleEshop-gitops.git"
-                       
+                       sh "git clone https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops.git"
+
                        // Update the image tags in the deployment manifests
                        dir('SimpleEshop-gitops') {
                            // Update main app image
                            sh "sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${DOCKER_IMAGE}:${DOCKER_TAG}|' kubernetes/applications/simpleeshop-deployment.yaml"
-                           
+
                            // Commit and push the changes
                            sh "git config user.email 'jenkins@example.com'"
                            sh "git config user.name 'Jenkins CI'"
                            sh "git add kubernetes/applications/simpleeshop-deployment.yaml"
                            sh "git commit -m 'Update web-app image tag to ${DOCKER_TAG}'"
-                           
+
                            withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                               sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop-gitops.git main"
+                               sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops.git main"
                            }
                        }
                    }
                }
            }
        }
-       
+
        post {
            always {
                sh "docker logout"
@@ -163,14 +163,14 @@ Follow these steps to set up SSH keys for Jenkins to securely access your GitHub
 
 1. SSH into your control plane VM:
    ```bash
-   ssh azureuser@4.210.149.226
+   ssh azureuser@<YOUR_CONTROL_PLANE_IP>
    ```
 
 2. Generate an SSH key pair for the Jenkins user:
    ```bash
    # Get the Jenkins pod name
    JENKINS_POD=$(sg microk8s -c "microk8s kubectl get pods -n jenkins -l app=jenkins -o jsonpath='{.items[0].metadata.name}'")
-   
+
    # Execute commands in the Jenkins container
    sg microk8s -c "microk8s kubectl exec -it $JENKINS_POD -n jenkins -- bash -c 'mkdir -p /var/jenkins_home/.ssh && ssh-keygen -t rsa -b 4096 -C \"jenkins@simpleeshop\" -f /var/jenkins_home/.ssh/id_rsa -N \"\" && cat /var/jenkins_home/.ssh/id_rsa.pub'"
    ```
@@ -183,7 +183,7 @@ Follow these steps to set up SSH keys for Jenkins to securely access your GitHub
    - Click "Add SSH key"
 
 4. Configure Jenkins to use SSH for Git:
-   - Access Jenkins at http://4.210.149.226:30080
+   - Access Jenkins at http://<YOUR_CONTROL_PLANE_IP>:30080
    - Go to "Manage Jenkins" > "Manage Credentials" > "Jenkins" > "Global credentials" > "Add Credentials"
    - Select "SSH Username with private key" from the "Kind" dropdown
    - Set the ID to "github-ssh-key"
@@ -204,16 +204,16 @@ Follow these steps to set up SSH keys for Jenkins to securely access your GitHub
 6. Update your Jenkinsfile.webapp to use SSH instead of HTTPS (optional):
    ```groovy
    // Change this line:
-   sh "git clone https://github.com/Niroth36/SimpleEshop-gitops.git"
-   
+   sh "git clone https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops.git"
+
    // To this:
-   sh "git clone git@github.com:Niroth36/SimpleEshop-gitops.git"
-   
+   sh "git clone git@github.com:<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops.git"
+
    // And change this block:
    withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-       sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop-gitops.git main"
+       sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops.git main"
    }
-   
+
    // To this:
    sshagent(['github-ssh-key']) {
        sh "git push origin main"
@@ -222,25 +222,25 @@ Follow these steps to set up SSH keys for Jenkins to securely access your GitHub
 
 ## Step 3: Create a Jenkins Job for the Web App Pipeline
 
-1. Access Jenkins at http://4.210.149.226:30080
+1. Access Jenkins at http://<YOUR_CONTROL_PLANE_IP>:30080
 2. Click "New Item"
 3. Enter a name (e.g., "SimpleEshop-WebApp")
 4. Select "Pipeline" and click "OK"
 5. In the configuration page:
-   - Under "General", check "GitHub project" and enter your repository URL (e.g., https://github.com/Niroth36/SimpleEshop)
+   - Under "General", check "GitHub project" and enter your repository URL (e.g., https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop)
    - Under "Build Triggers", check "GitHub hook trigger for GITScm polling"
    - Under "Pipeline", select "Pipeline script from SCM"
    - Select "Git" as the SCM
-   - Enter your repository URL (e.g., https://github.com/Niroth36/SimpleEshop.git)
+   - Enter your repository URL (e.g., https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git)
    - Specify the branch (e.g., "main")
    - Set the Script Path to "Jenkinsfile.webapp"
    - Click "Save"
 
 ## Step 4: Set Up GitHub Webhook
 
-1. Go to your GitHub repository (e.g., https://github.com/Niroth36/SimpleEshop)
+1. Go to your GitHub repository (e.g., https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop)
 2. Click on "Settings" > "Webhooks" > "Add webhook"
-3. Set the Payload URL to `http://4.210.149.226:30080/github-webhook/`
+3. Set the Payload URL to `http://<YOUR_CONTROL_PLANE_IP>:30080/github-webhook/`
 4. Set the Content type to `application/json`
 5. For "Which events would you like to trigger this webhook?", select "Just the push event"
 6. Check "Active"
@@ -252,9 +252,9 @@ Follow these steps to set up SSH keys for Jenkins to securely access your GitHub
    ```bash
    # Edit a file in the web-app directory
    nano web-app/server/server_postgresql.js
-   
+
    # Add a comment or make a small change
-   
+
    # Commit and push the change
    git add web-app/server/server_postgresql.js
    git commit -m "Test web-app pipeline trigger"
@@ -268,11 +268,11 @@ Follow these steps to set up SSH keys for Jenkins to securely access your GitHub
 
 After the pipeline completes successfully:
 
-1. Access ArgoCD at https://4.210.149.226:30443
+1. Access ArgoCD at https://<YOUR_CONTROL_PLANE_IP>:30443
 2. Log in with the admin credentials
 3. Check the SimpleEshop application status
 4. Verify that it's synced and healthy
-5. Access your application at http://4.210.149.226:30000 to ensure it's working correctly
+5. Access your application at http://<YOUR_CONTROL_PLANE_IP>:30000 to ensure it's working correctly
 
 ## Troubleshooting
 
