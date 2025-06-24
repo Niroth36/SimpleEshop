@@ -2,21 +2,24 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'niroth36/simpleeshop-jenkins'
+        DOCKER_IMAGE = 'niroth36/simpleeshop'
         DOCKER_TAG = "${env.BUILD_NUMBER}"
         DOCKERFILE_PATH = 'Dockerfile.x86'
         CONTROL_PLANE_IP = '4.210.149.226'
     }
 
-    options {
-        cleanWs()
-    }
-
     stages {
+        stage('Initialize') {
+            steps {
+                // Clean workspace manually since options { cleanWs() } may fail
+                cleanWs()
+                echo '✅ Workspace cleaned'
+            }
+        }
+
         stage('Clone Repository') {
             steps {
                 script {
-                    deleteDir()
                     git url: 'https://github.com/Niroth36/simpleeshop-app.git',
                          branch: 'main',
                          credentialsId: 'github-token'
@@ -28,12 +31,10 @@ pipeline {
 
         stage('Install SSH Client') {
             steps {
-                script {
-                    sh """
-                        apt-get update && \
-                        apt-get install -y openssh-client
-                    """
-                }
+                sh """
+                    apt-get update && \
+                    apt-get install -y openssh-client
+                """
             }
         }
 
@@ -54,15 +55,15 @@ pipeline {
 
                         // Clean up previous build dir on control plane
                         sh """
-                            ssh -i ~/.ssh/id_rsa \${SSH_USER}@${CONTROL_PLANE_IP} "rm -rf /tmp/simpleeshop-build-${BUILD_NUMBER} || true"
-                            scp -i ~/.ssh/id_rsa -r . \${SSH_USER}@${CONTROL_PLANE_IP}:/tmp/simpleeshop-build-${BUILD_NUMBER}
+                            ssh -i ~/.ssh/id_rsa \${SSH_USER}@${CONTROL_PLANE_IP} "rm -rf /tmp/simpleeshop-build-${env.BUILD_NUMBER} || true"
+                            scp -i ~/.ssh/id_rsa -r . \${SSH_USER}@${CONTROL_PLANE_IP}:/tmp/simpleeshop-build-${env.BUILD_NUMBER}
                         """
 
                         // Build and push on remote host
                         sh """
                             ssh -i ~/.ssh/id_rsa \${SSH_USER}@${CONTROL_PLANE_IP} '
                                 set -e
-                                cd /tmp/simpleeshop-build-${BUILD_NUMBER}
+                                cd /tmp/simpleeshop-build-${env.BUILD_NUMBER}
 
                                 echo "🏗️ Building Docker image..."
                                 docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -f ${DOCKERFILE_PATH} .
@@ -95,7 +96,7 @@ pipeline {
                     withCredentials([sshUserPrivateKey(credentialsId: 'control-plane-credentials', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                         sh """
                             ssh -i ~/.ssh/id_rsa \${SSH_USER}@${CONTROL_PLANE_IP} "
-                                rm -rf /tmp/simpleeshop-build-${BUILD_NUMBER}
+                                rm -rf /tmp/simpleeshop-build-${env.BUILD_NUMBER}
                                 echo '🧹 Temporary build directory removed.'
                             "
                         """
@@ -107,7 +108,7 @@ pipeline {
 
     post {
         always {
-            deleteDir()
+            cleanWs()
         }
         success {
             echo "🎉 Pipeline completed successfully!"
