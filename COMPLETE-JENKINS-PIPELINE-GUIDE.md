@@ -30,11 +30,11 @@ A CI/CD (Continuous Integration/Continuous Deployment) pipeline automates the pr
 
 Before you begin, ensure you have:
 
-1. Jenkins installed and running (accessible at http://4.210.149.226:30080)
+1. Jenkins installed and running (accessible at http://<YOUR_CONTROL_PLANE_IP>:30080)
 2. Docker Hub account
 3. GitHub repository for your SimpleEshop project
-4. ArgoCD installed and configured (accessible at https://4.210.149.226:30443)
-5. Access to your control plane VM (IP: 4.210.149.226)
+4. ArgoCD installed and configured (accessible at https://<YOUR_CONTROL_PLANE_IP>:30443)
+5. Access to your control plane VM
 
 ## Creating the Jenkinsfile
 
@@ -42,12 +42,12 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
 
 1. SSH into your control plane VM:
    ```bash
-   ssh azureuser@4.210.149.226
+   ssh azureuser@<YOUR_CONTROL_PLANE_IP>
    ```
 
 2. Clone your repository if you haven't already:
    ```bash
-   git clone https://github.com/Niroth36/SimpleEshop.git
+   git clone https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git
    cd SimpleEshop
    ```
 
@@ -55,40 +55,40 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
    ```groovy
    pipeline {
        agent any
-       
+
        environment {
            DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
-           DOCKER_IMAGE = 'niroth36/simpleeshop'
+           DOCKER_IMAGE = '<YOUR_DOCKERHUB_USERNAME>/simpleeshop'
            DOCKER_TAG = "${env.BUILD_NUMBER}"
        }
-       
+
        stages {
            stage('Checkout') {
                steps {
                    checkout scm
                }
            }
-           
+
            stage('Check for Web App Changes') {
                steps {
                    script {
                        // Get the list of changed files
                        def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD', returnStdout: true).trim()
-                       
+
                        // Check if any files in the web-app directory have changed
                        def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" || echo "false"', returnStdout: true).trim()
-                       
+
                        if (webAppChanged == 'false') {
                            echo "No changes detected in web-app directory. Skipping build."
                            currentBuild.result = 'SUCCESS'
                            return
                        }
-                       
+
                        echo "Changes detected in web-app directory. Proceeding with build."
                    }
                }
            }
-           
+
            stage('Install Dependencies') {
                steps {
                    dir('web-app/server') {
@@ -96,7 +96,7 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
                    }
                }
            }
-           
+
            stage('Lint') {
                steps {
                    dir('web-app/server') {
@@ -105,26 +105,26 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
                    }
                }
            }
-           
+
            stage('Test') {
                steps {
                    dir('web-app/server') {
                        // Run tests if you have them configured
                        sh 'echo "Tests would run here if configured"'
-                       
+
                        // Run the integration tests for email services
                        sh 'cd ../../ && ./test-integration.sh'
                    }
                }
            }
-           
+
            stage('Build Docker Image') {
                steps {
                    sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                    sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
                }
            }
-           
+
            stage('Push to Docker Hub') {
                steps {
                    sh "echo ${DOCKER_HUB_CREDS_PSW} | docker login -u ${DOCKER_HUB_CREDS_USR} --password-stdin"
@@ -132,33 +132,33 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
                    sh "docker push ${DOCKER_IMAGE}:latest"
                }
            }
-           
+
            stage('Update Kubernetes Manifests') {
                steps {
                    script {
                        // Clone the GitOps repository
-                       sh "git clone https://github.com/Niroth36/SimpleEshop-gitops.git"
-                       
+                       sh "git clone https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops.git"
+
                        // Update the image tags in the deployment manifests
                        dir('SimpleEshop-gitops') {
                            // Update main app image
                            sh "sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${DOCKER_IMAGE}:${DOCKER_TAG}|' kubernetes/applications/simpleeshop-deployment.yaml"
-                           
+
                            // Commit and push the changes
                            sh "git config user.email 'jenkins@example.com'"
                            sh "git config user.name 'Jenkins CI'"
                            sh "git add kubernetes/applications/simpleeshop-deployment.yaml"
                            sh "git commit -m 'Update web-app image tag to ${DOCKER_TAG}'"
-                           
+
                            withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                               sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop-gitops.git main"
+                               sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops.git main"
                            }
                        }
                    }
                }
            }
        }
-       
+
        post {
            always {
                sh "docker logout"
@@ -185,7 +185,7 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
 
 ### Step 1: Configure Jenkins Credentials
 
-1. Access Jenkins at http://4.210.149.226:30080
+1. Access Jenkins at http://<YOUR_CONTROL_PLANE_IP>:30080
 2. Go to "Manage Jenkins" > "Manage Credentials" > "Jenkins" > "Global credentials" > "Add Credentials"
 3. Add Docker Hub credentials:
    - Kind: Username with password
@@ -224,11 +224,11 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
 2. Enter a name for your job (e.g., "SimpleEshop-WebApp")
 3. Select "Pipeline" and click "OK"
 4. In the configuration page:
-   - Under "General", check "GitHub project" and enter your repository URL (e.g., https://github.com/Niroth36/SimpleEshop)
+   - Under "General", check "GitHub project" and enter your repository URL (e.g., https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop)
    - Under "Build Triggers", check "GitHub hook trigger for GITScm polling"
    - Under "Pipeline", select "Pipeline script from SCM"
    - Select "Git" as the SCM
-   - Enter your repository URL (e.g., https://github.com/Niroth36/SimpleEshop.git)
+   - Enter your repository URL (e.g., https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop.git)
    - Specify the branch (e.g., "main")
    - Set the Script Path to "Jenkinsfile.webapp"
    - Click "Save"
@@ -240,14 +240,14 @@ The Jenkinsfile defines the pipeline stages and steps. If you don't already have
 1. Go to "Manage Jenkins" > "Configure System"
 2. Scroll down to the "GitHub" section
 3. Click "Advanced" and check "Specify another hook URL for GitHub configuration"
-4. Set the Hook URL to `http://4.210.149.226:30080/github-webhook/`
+4. Set the Hook URL to `http://<YOUR_CONTROL_PLANE_IP>:30080/github-webhook/`
 5. Click "Save"
 
 ### Step 2: Create a GitHub Webhook
 
-1. Go to your GitHub repository (e.g., https://github.com/Niroth36/SimpleEshop)
+1. Go to your GitHub repository (e.g., https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop)
 2. Click on "Settings" > "Webhooks" > "Add webhook"
-3. Set the Payload URL to `http://4.210.149.226:30080/github-webhook/`
+3. Set the Payload URL to `http://<YOUR_CONTROL_PLANE_IP>:30080/github-webhook/`
 4. Set the Content type to `application/json`
 5. For "Which events would you like to trigger this webhook?", select "Just the push event"
 6. Check "Active"
@@ -279,15 +279,15 @@ For detailed instructions on setting up Docker in Jenkins, refer to the [JENKINS
 After the pipeline completes:
 
 1. Check that the Docker image was pushed to Docker Hub:
-   - Go to https://hub.docker.com/r/niroth36/simpleeshop/tags
+   - Go to https://hub.docker.com/r/<YOUR_DOCKERHUB_USERNAME>/simpleeshop/tags
    - Verify that a new tag with the build number exists
 
 2. Check that the GitOps repository was updated:
-   - Go to https://github.com/Niroth36/SimpleEshop-gitops
+   - Go to https://github.com/<YOUR_GITHUB_USERNAME>/SimpleEshop-gitops
    - Check the commit history to see if a new commit was made by Jenkins
 
 3. Verify the deployment in ArgoCD:
-   - Access ArgoCD at https://4.210.149.226:30443
+   - Access ArgoCD at https://<YOUR_CONTROL_PLANE_IP>:30443
    - Log in with the admin credentials
    - Check the SimpleEshop application status
    - Verify that it's synced and healthy
@@ -298,9 +298,9 @@ After the pipeline completes:
    ```bash
    # Edit a file in the web-app directory
    nano web-app/server/server_postgresql.js
-   
+
    # Add a comment or make a small change
-   
+
    # Commit and push the change
    git add web-app/server/server_postgresql.js
    git commit -m "Test web-app pipeline trigger"
@@ -322,7 +322,7 @@ After the pipeline completes:
 
 3. **Firewall Issues**: Ensure that port 30080 is open on your control plane VM and that GitHub can reach your Jenkins server.
 
-4. **URL Issues**: Make sure the webhook URL is correct and includes the trailing slash: `http://4.210.149.226:30080/github-webhook/`
+4. **URL Issues**: Make sure the webhook URL is correct and includes the trailing slash: `http://<YOUR_CONTROL_PLANE_IP>:30080/github-webhook/`
 
 ### Docker Build Issues
 
