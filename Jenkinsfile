@@ -37,14 +37,14 @@ pipeline {
             """
         }
     }
-    
+
     environment {
         DOCKER_IMAGE = 'niroth36/simpleeshop'
         GITOPS_REPO = 'https://github.com/Niroth36/SimpleEshop.git'
-        GITOPS_CREDENTIALS = 'github-credentials'
+        GITOPS_CREDENTIALS = 'github-token'
         APP_NAME = 'simpleeshop'
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
@@ -62,7 +62,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Check for Web App Changes') {
             steps {
                 container('git') {
@@ -71,14 +71,14 @@ pipeline {
                             script: 'git diff --name-only HEAD~1 HEAD || echo "first-build"',
                             returnStdout: true
                         ).trim()
-                        
+
                         echo "📝 Changed files: ${changedFiles}"
-                        
+
                         def webAppChanged = sh(
                             script: 'git diff --name-only HEAD~1 HEAD | grep -q "^web-app/" && echo "true" || echo "false"',
                             returnStdout: true
                         ).trim()
-                        
+
                         if (changedFiles == "first-build") {
                             echo "🎯 First build or no previous commit - proceeding with build"
                             env.SHOULD_BUILD = "true"
@@ -93,7 +93,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Install Dependencies') {
             when {
                 environment name: 'SHOULD_BUILD', value: 'true'
@@ -113,7 +113,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run Tests') {
             when {
                 environment name: 'SHOULD_BUILD', value: 'true'
@@ -139,7 +139,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build Docker Image with Kaniko') {
             when {
                 environment name: 'SHOULD_BUILD', value: 'true'
@@ -161,7 +161,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Update Kubernetes Manifests') {
             when {
                 environment name: 'SHOULD_BUILD', value: 'true'
@@ -173,10 +173,10 @@ pipeline {
                             sh """
                                 git config user.email "jenkins@simpleeshop.local"
                                 git config user.name "Jenkins CI/CD"
-                                
+
                                 echo "🔍 Looking for deployment manifests..."
                                 find kubernetes/ -name "*deployment*.yaml" -type f | head -5
-                                
+
                                 if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
                                     echo "📝 Updating kubernetes/applications/simpleeshop-deployment.yaml"
                                     sed -i 's|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g' kubernetes/applications/simpleeshop-deployment.yaml
@@ -190,14 +190,14 @@ pipeline {
                                     find . -name "*simpleeshop*deployment*.yaml" -type f
                                     find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
                                 fi
-                                
+
                                 if git diff --quiet; then
                                     echo "ℹ️ No changes to commit"
                                 else
                                     echo "📋 Changes detected, committing..."
                                     git add kubernetes/
                                     git commit -m "🚀 Update ${APP_NAME} image to ${BUILD_NUMBER_TAG}"
-                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:main
+                                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:master
                                     echo "✅ Kubernetes manifests updated!"
                                 fi
                             """
@@ -207,14 +207,14 @@ pipeline {
             }
         }
     }
-    
+
     post {
         success {
             script {
                 if (env.SHOULD_BUILD == "true") {
                     echo """
                     🎉 SUCCESS: SimpleEshop CI/CD Completed with Kaniko!
-                    
+
                     📦 Image: ${FULL_IMAGE_TAG}
                     🚀 Deployment: Updated via GitOps
                     🌐 URL: http://4.210.149.226:30000
@@ -222,7 +222,7 @@ pipeline {
                 }
             }
         }
-        
+
         failure {
             echo """
             ❌ FAILED: Check Docker Hub secret and GitHub credentials
