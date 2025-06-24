@@ -1,5 +1,42 @@
    pipeline {
-       agent any
+       agent {
+           kubernetes {
+               yaml """
+                   apiVersion: v1
+                   kind: Pod
+                   spec:
+                     containers:
+                     - name: jnlp
+                       image: jenkins/inbound-agent:latest
+                       args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+                     - name: node
+                       image: node:18-alpine
+                       command:
+                       - cat
+                       tty: true
+                     - name: kaniko
+                       image: gcr.io/kaniko-project/executor:debug
+                       command:
+                       - cat
+                       tty: true
+                       volumeMounts:
+                       - name: docker-config
+                         mountPath: /kaniko/.docker
+                     - name: git
+                       image: alpine/git:latest
+                       command:
+                       - cat
+                       tty: true
+                     volumes:
+                     - name: docker-config
+                       secret:
+                         secretName: docker-hub-secret
+                         items:
+                         - key: .dockerconfigjson
+                           path: config.json
+               """
+           }
+       }
 
        environment {
            DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
@@ -10,29 +47,42 @@
        stages {
            stage('Checkout') {
                steps {
-                   checkout scm
+                   container('git') {
+                       checkout scm
+                       script {
+                           env.IMAGE_TAG = sh(
+                               script: "git rev-parse --short HEAD",
+                               returnStdout: true
+                           ).trim()
+                           env.BUILD_NUMBER_TAG = "${env.BUILD_NUMBER}-${env.IMAGE_TAG}"
+                           env.FULL_IMAGE_TAG = "${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
+                       }
+                       echo "Building: ${env.FULL_IMAGE_TAG}"
+                   }
                }
            }
 
            stage('Check for Web App Changes') {
                steps {
-                   script {
-                       // Get the list of changed files
-                       def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD || echo "first-build"', returnStdout: true).trim()
+                   container('git') {
+                       script {
+                           // Get the list of changed files
+                           def changedFiles = sh(script: 'git diff --name-only HEAD^ HEAD || echo "first-build"', returnStdout: true).trim()
 
-                       // Check if any files in the web-app directory have changed
-                       def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" && echo "true" || echo "false"', returnStdout: true).trim()
+                           // Check if any files in the web-app directory have changed
+                           def webAppChanged = sh(script: 'git diff --name-only HEAD^ HEAD | grep -q "^web-app/" && echo "true" || echo "false"', returnStdout: true).trim()
 
-                       if (changedFiles == "first-build") {
-                           echo "First build or no previous commit - proceeding with build"
-                           env.SHOULD_BUILD = "true"
-                       } else if (webAppChanged == "true") {
-                           echo "Changes detected in web-app directory. Proceeding with build."
-                           env.SHOULD_BUILD = "true"
-                       } else {
-                           echo "No changes detected in web-app directory. Skipping build."
-                           env.SHOULD_BUILD = "false"
-                           currentBuild.result = 'SUCCESS'
+                           if (changedFiles == "first-build") {
+                               echo "First build or no previous commit - proceeding with build"
+                               env.SHOULD_BUILD = "true"
+                           } else if (webAppChanged == "true") {
+                               echo "Changes detected in web-app directory. Proceeding with build."
+                               env.SHOULD_BUILD = "true"
+                           } else {
+                               echo "No changes detected in web-app directory. Skipping build."
+                               env.SHOULD_BUILD = "false"
+                               currentBuild.result = 'SUCCESS'
+                           }
                        }
                    }
                }
@@ -43,13 +93,15 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   dir('web-app/server') {
-                       script {
-                           if (!fileExists('package-lock.json')) {
-                               echo "package-lock.json not found, running npm install to generate it"
-                               sh 'npm install'
-                           } else {
-                               sh 'npm ci || npm install'
+                   container('node') {
+                       dir('web-app/server') {
+                           script {
+                               if (!fileExists('package-lock.json')) {
+                                   echo "package-lock.json not found, running npm install to generate it"
+                                   sh 'npm install'
+                               } else {
+                                   sh 'npm ci || npm install'
+                               }
                            }
                        }
                    }
@@ -61,9 +113,11 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   dir('web-app/server') {
-                       // Add linting if you have ESLint configured
-                       sh 'echo "Linting would run here if configured"'
+                   container('node') {
+                       dir('web-app/server') {
+                           // Add linting if you have ESLint configured
+                           sh 'echo "Linting would run here if configured"'
+                       }
                    }
                }
            }
@@ -73,34 +127,36 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   dir('web-app/server') {
-                       // Run tests if you have them configured
-                       sh 'echo "Tests would run here if configured"'
-
-                       // Run the integration tests for email services
-                       sh 'cd ../../ && ./test-integration.sh || echo "Integration tests not configured"'
+                   container('node') {
+                       dir('web-app/server') {
+                           // Run tests if you have them configured
+                           sh 'echo "Tests would run here if configured"'
+                       }
                    }
+                   // Skip integration tests that require Docker as they won't work in this environment
+                   echo "Skipping integration tests that require Docker"
                }
            }
 
-           stage('Build Docker Image') {
+           stage('Build and Push Docker Image with Kaniko') {
                when {
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
-                   sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
-               }
-           }
-
-           stage('Push to Docker Hub') {
-               when {
-                   environment name: 'SHOULD_BUILD', value: 'true'
-               }
-               steps {
-                   sh "echo ${DOCKER_HUB_CREDS_PSW} | docker login -u ${DOCKER_HUB_CREDS_USR} --password-stdin"
-                   sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                   sh "docker push ${DOCKER_IMAGE}:latest"
+                   container('kaniko') {
+                       script {
+                           sh """
+                               /kaniko/executor \\
+                                   --dockerfile=Dockerfile.x86 \\
+                                   --context=. \\
+                                   --destination=${DOCKER_IMAGE}:${BUILD_NUMBER_TAG} \\
+                                   --destination=${DOCKER_IMAGE}:latest \\
+                                   --cache=true \\
+                                   --cache-ttl=24h
+                           """
+                           echo "Image built and pushed: ${DOCKER_IMAGE}:${BUILD_NUMBER_TAG}"
+                       }
+                   }
                }
            }
 
@@ -109,23 +165,40 @@
                    environment name: 'SHOULD_BUILD', value: 'true'
                }
                steps {
-                   script {
-                       // Clone the GitOps repository
-                       sh "git clone https://github.com/Niroth36/SimpleEshop-gitops.git"
+                   container('git') {
+                       script {
+                           withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                               sh """
+                                   git config user.email "jenkins@simpleeshop.local"
+                                   git config user.name "Jenkins CI/CD"
 
-                       // Update the image tags in the deployment manifests
-                       dir('SimpleEshop-gitops') {
-                           // Update main app image
-                           sh "sed -i \"s|image: ${DOCKER_IMAGE}:.*|image: ${DOCKER_IMAGE}:${DOCKER_TAG}|g\" kubernetes/applications/simpleeshop-deployment.yaml"
+                                   echo "Looking for deployment manifests..."
+                                   find kubernetes/ -name "*deployment*.yaml" -type f | head -5
 
-                           // Commit and push the changes
-                           sh "git config user.email 'jenkins@example.com'"
-                           sh "git config user.name 'Jenkins CI'"
-                           sh "git add kubernetes/applications/simpleeshop-deployment.yaml"
-                           sh "git commit -m 'Update web-app image tag to ${DOCKER_TAG}'"
+                                   if [ -f kubernetes/applications/simpleeshop-deployment.yaml ]; then
+                                       echo "Updating kubernetes/applications/simpleeshop-deployment.yaml"
+                                       sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/applications/simpleeshop-deployment.yaml
+                                       grep "image:" kubernetes/applications/simpleeshop-deployment.yaml
+                                   elif [ -f kubernetes/simpleeshop-deployment.yaml ]; then
+                                       echo "Updating kubernetes/simpleeshop-deployment.yaml"
+                                       sed -i "s|image: ${DOCKER_IMAGE}:.*|image: ${FULL_IMAGE_TAG}|g" kubernetes/simpleeshop-deployment.yaml
+                                       grep "image:" kubernetes/simpleeshop-deployment.yaml
+                                   else
+                                       echo "Searching for any deployment file with simpleeshop..."
+                                       find . -name "*simpleeshop*deployment*.yaml" -type f
+                                       find . -name "*deployment*.yaml" -type f | grep -i simple || echo "No simpleeshop deployment found"
+                                   fi
 
-                           withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                               sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop-gitops.git main"
+                                   if git diff --quiet; then
+                                       echo "No changes to commit"
+                                   else
+                                       echo "Changes detected, committing..."
+                                       git add kubernetes/
+                                       git commit -m "Update web-app image to ${BUILD_NUMBER_TAG}"
+                                       git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Niroth36/SimpleEshop.git HEAD:main
+                                       echo "Kubernetes manifests updated!"
+                                   fi
+                               """
                            }
                        }
                    }
@@ -135,11 +208,21 @@
 
        post {
            always {
-               sh "docker logout"
                deleteDir()
            }
            success {
-               echo "Web App Pipeline completed successfully!"
+               script {
+                   if (env.SHOULD_BUILD == "true") {
+                       echo """
+                       SUCCESS: Web App Pipeline completed successfully!
+
+                       Image: ${FULL_IMAGE_TAG}
+                       Deployment: Updated via GitOps
+                       """
+                   } else {
+                       echo "Web App Pipeline completed successfully! (No changes detected)"
+                   }
+               }
            }
            failure {
                echo "Web App Pipeline failed!"
